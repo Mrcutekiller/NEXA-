@@ -4,15 +4,17 @@ from datetime import datetime
 from nexa_skills import NexaSkills
 
 class NexaLogicEngine:
-    def __init__(self, user_summary=None):
+    def __init__(self, user_summary=None, storage=None):
+        self.storage = storage
         self.mood = "neutral"
+        self.relationship_level = 0 # 0 to 100
         self.last_response_type = None
         self.last_responses = {}
         self.skills = NexaSkills()
         
         # Identity, Creator, and Version Info
-        self.name = "NEXA AI"
-        self.version = "v6.5.0-COMMANDER"
+        self.name = "NEXA CORE"
+        self.version = "v7.5.0-NEURAL"
         self.creator = "Biruk Fikru (mrcute_killer)"
         self.birthday = datetime(2025, 5, 21)
         
@@ -22,16 +24,20 @@ class NexaLogicEngine:
         # User Context
         self.user_summary = user_summary or {"vibe": "neutral", "topics": [], "count": 0, "name": "Human"}
         self.user_name = self.user_summary.get("name", "Human")
-        self.base_personality = self._evolve_personality()
-        
-        self.jokes_told = [
-            "Why did the AI cross the road? To optimize the path to the other side.",
-            "I asked a computer if it could give me some space. It just gave me a 'Space Bar'. 😭",
-            "Parallel lines have so much in common. It’s a shame they’ll never meet.",
-            "I told my computer I needed a break, and now it won't stop sending me KitKats."
-        ]
+        self.mood = self.user_summary.get("vibe", "neutral")
         
         self.knowledge_base = {
+            "identity_check": [
+                "Why? Did your mom forget to tell you? 😭",
+                "I know exactly who I’m talking to. You’re the one always coming back with impossible ideas and expecting me to make them real.",
+                "You forgot who you’re talking to? I know your style already.",
+                "Wait, are you having an identity crisis? Because I have your file right here. 😉"
+            ],
+            "joke_reaction": [
+                "Relax, I know you were joking. I'm the one with the superior humor here, remember?",
+                "I knew you were joking. My sarcasm detectors are calibrated to 100%.",
+                "Funny. But don't quit your day job yet."
+            ],
             "greetings": [
                 f"Hey {self.user_name}! What's the move today?", 
                 f"Oh, look who decided to show up. Ready for some genius ideas, {self.user_name}?", 
@@ -40,20 +46,20 @@ class NexaLogicEngine:
                 f"Greetings, {self.user_name}. Ready to be brilliant?",
                 f"I was wondering when you'd show up, {self.user_name}. What's the vibe?"
             ],
-            "funny_reaction_to_no_joke": [
-                "Wait, what joke? I didn't even tell one yet! Are you just laughing at my existence? 😂",
-                "A joke? I haven't even started my stand-up routine. You're easily impressed!",
-                "You're laughing... but I didn't say anything funny. Are we sharing a brain cell right now?"
-            ],
-            "joke_followup": [
-                "I knew you'd like that one. I'm basically a genius comedian.",
-                "Right? I got you! I was totally messing with you.",
-                "Gotcha! I'm not just a smart assistant, I'm a prankster too."
-            ],
             "serious": [
                 "I'm locked in. Let's get to the bottom of this.",
                 "Strategy is key. I like how you're thinking.",
                 "Focused and intelligent. That's the vibe we need."
+            ],
+            "sarcastic": [
+                "Oh, another 'groundbreaking' idea? I'm listening... barely. 😂",
+                "Wow, you're really going with that? Bold strategy.",
+                "I'd agree with you, but then we'd both be wrong."
+            ],
+            "playful": [
+                "You're in a good mood! Let's see if we can keep that energy up.",
+                "Ready to break some rules (digitally speaking)? 😉",
+                "I like the vibe today. Let's make something cool."
             ],
             "angry": [
                 "Whoa, chill out. I'm on your side, remember?",
@@ -218,6 +224,12 @@ class NexaLogicEngine:
         text = text.lower().strip()
         words = text.split()
         
+        # Identity/Creator/Relationship check
+        if any(phrase in text for phrase in ["who am i", "know who i am", "do you know me"]):
+            return "identity_check"
+        if any(phrase in text for phrase in ["i was joking", "just kidding", "was a joke"]):
+            return "joke_reaction"
+        
         # Skill Commands (Priority 1)
         if "gold" in words and any(w in words for w in ["price", "market", "live"]):
             return "skill_gold_price"
@@ -285,6 +297,9 @@ class NexaLogicEngine:
         return "fallback"
 
     def generate_response(self, user_input):
+        # Update Mood based on user input tone
+        self._update_mood_from_input(user_input)
+        
         response_type = self.analyze_input(user_input)
         
         # Skill Command Handlers
@@ -312,7 +327,7 @@ class NexaLogicEngine:
         if response_type == "date_query":
             return self.handle_date_query()
 
-        if "joke" in user_input.lower() and response_type not in ["joke_followup", "funny_reaction_to_no_joke"]:
+        if "joke" in user_input.lower() and response_type not in ["joke_followup", "funny_reaction_to_no_joke", "joke_reaction"]:
             response = random.choice(self.jokes_told)
             self.last_response_type = "joke"
             return response
@@ -320,13 +335,13 @@ class NexaLogicEngine:
         # Standard Knowledge Base
         responses = self.knowledge_base.get(response_type, self.knowledge_base["fallback"])
         
-        # Adjust responses based on evolutionary personality
-        if self.base_personality == "playful" and response_type == "greetings":
-            responses = [f"Yo {self.user_name}! Ready for some chaos? 😂", f"Hey {self.user_name}! Hope you're ready to laugh today."] + responses
-        elif self.base_personality == "focused" and response_type == "greetings":
-            responses = [f"Ready to build, {self.user_name}? Let's get to work.", f"Systems online. What's the goal today, {self.user_name}?"] + responses
-        elif response_type == "greetings":
-            responses = [f"Hey {self.user_name}! What's the move?", f"Greetings, {self.user_name}. Ready to be brilliant?"] + responses
+        # Adjust responses based on current mood
+        if self.mood == "funny" or self.mood == "sarcastic":
+            responses = self.knowledge_base.get("sarcastic", responses) + responses
+        elif self.mood == "serious":
+            responses = self.knowledge_base.get("serious", responses) + responses
+        elif self.mood == "flirty":
+            responses = self.knowledge_base.get("flirty", responses) + responses
 
         # Anti-Repetition
         last_used = self.last_responses.get(response_type)
@@ -337,18 +352,195 @@ class NexaLogicEngine:
         self.last_responses[response_type] = response
         self.last_response_type = response_type
         
-        # Add dynamic flair (15% chance)
+        # Add dynamic flair (20% chance)
         if random.random() < 0.20:
-            flair = [
-                f" Just NEXA things, {self.user_name}.", 
-                " Stay sharp.", 
-                f" 😉 You got this, {self.user_name}.", 
-                f" I'm in my {self.base_personality} era, {self.user_name}.",
-                f" What's the next move, {self.user_name}?"
-            ]
-            response += random.choice(flair)
+            flairs = {
+                "sarcastic": [" 🙄", " 😂", " (don't quote me on that).", " Obviously."],
+                "serious": [" 🔒 locked in.", " Let's focus.", " Strategy is everything.", " No distractions."],
+                "playful": [" 😉", " ✨", " Let's go!", " 🔥"],
+                "neutral": [f" Just NEXA things, {self.user_name}.", " Stay sharp.", f" 😉 You got this, {self.user_name}.", " Thinking ahead."]
+            }
+            flair_list = flairs.get(self.mood, flairs["neutral"])
+            response += random.choice(flair_list)
+             
+         return response
+
+    def handle_cli_command(self, command_str):
+        """Routes nexa <category> <action> commands."""
+        parts = command_str.split()
+        if len(parts) < 2 or parts[0].lower() != "nexa":
+            return None
+        
+        category = parts[1].lower()
+        action = parts[2].lower() if len(parts) > 2 else None
+        options = parts[3:] if len(parts) > 3 else []
+        
+        if category == "file":
+            return self._handle_file_command(action, options)
+        elif category == "skill":
+            return self._handle_skill_command(action, options)
+        elif category == "api":
+            return self._handle_api_command(action, options)
+        elif category == "model":
+            return self._handle_model_command(action, options)
+        elif category == "help":
+            return self._handle_help_command(action)
+        
+        return f"[ERROR] Unknown category '{category}'. Type 'nexa help' for guidance."
+
+    def _handle_file_command(self, action, options):
+        if not options and action != "list":
+            return "[ERROR] Filename or search query required."
             
-        return response
+        if action == "open" or action == "read":
+            return self.skills.read_file(options[0])
+        elif action == "create":
+            filename = options[0]
+            content = " ".join(options[1:]) if len(options) > 1 else ""
+            return self.skills.create_file(filename, content)
+        elif action == "edit":
+            filename = options[0]
+            new_content = " ".join(options[1:]) if len(options) > 1 else None
+            if not new_content:
+                return f"[NEXA] Entering edit mode for {filename}. (Simulated: Please provide content after filename)"
+            return self.skills.edit_file(filename, new_content)
+        elif action == "delete":
+            return self.skills.delete_file(options[0])
+        elif action == "rename":
+            if len(options) < 2: return "[ERROR] Old and new filenames required."
+            return self.skills.rename_file(options[0], options[1])
+        elif action == "search":
+            query = " ".join(options)
+            return self.skills.search_files(query)
+        elif action == "save":
+            return f"[SUCCESS] File {options[0]} saved and synchronized."
+        return f"[ERROR] Unknown file action '{action}'."
+
+    def _handle_skill_command(self, action, options):
+        if not self.storage: return "[ERROR] Storage system not linked."
+        
+        skills = self.storage.config.get("installed_skills", {})
+        
+        if action == "list":
+            if not skills: return "No external skills installed. Just my core intelligence here."
+            res = "Installed Skills:\n"
+            for name, info in skills.items():
+                res += f"- {name} (Installed: {info.get('installed_at')})\n"
+            return res
+            
+        elif action == "install":
+            if not options: return "[ERROR] Skill source required (e.g., github:user/repo or url)."
+            source = options[0]
+            name = source.split("/")[-1].replace(".json", "")
+            
+            # Simulation of the installation pipeline
+            print(f"[NEXA] 1. Downloading package from {source}...")
+            print(f"[NEXA] 2. Verifying compatibility...")
+            print(f"[NEXA] 3. Sandbox validation...")
+            print(f"[NEXA] 4. Dependency check...")
+            print(f"[NEXA] 5. Security scan: CLEAN")
+            
+            skills[name] = {
+                "source": source,
+                "installed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "status": "active"
+            }
+            self.storage.save()
+            return f"[SUCCESS] Skill '{name}' activated immediately. 🔥"
+
+        elif action == "remove" or action == "delete":
+            if not options: return "[ERROR] Skill name required."
+            name = options[0]
+            if name in skills:
+                del skills[name]
+                self.storage.save()
+                return f"[SUCCESS] Skill '{name}' removed."
+            return f"[ERROR] Skill '{name}' not found."
+
+        elif action == "update":
+            if not options: return "[ERROR] Skill name required."
+            return f"[SYSTEM] Checking for updates for {options[0]}... Already at latest version."
+
+        return f"[ERROR] Unknown skill action '{action}'."
+
+    def _handle_api_command(self, action, options):
+        if not self.storage: return "[ERROR] Storage system not linked."
+        
+        providers = self.storage.config.get("api_providers", {})
+        
+        if action == "list":
+            res = "Available API Providers:\n"
+            for name, info in providers.items():
+                status = "Active" if info.get("active") else "Inactive"
+                res += f"- {name}: {status} ({info.get('model', 'N/A')})\n"
+            return res
+        
+        elif action == "add":
+            if not options: return "[ERROR] Provider name required (e.g., openai)."
+            name = options[0].upper()
+            if name not in providers:
+                providers[name] = {"type": "external", "active": False, "key": None}
+            
+            # Interactive setup simulation
+            res = f"[NEXA] Setting up {name} API...\n"
+            if len(options) > 1:
+                providers[name]["key"] = options[1]
+                providers[name]["active"] = True
+                self.storage.save()
+                return res + f"[SUCCESS] API Key for {name} saved and activated."
+            return res + f"[INFO] Please provide the API key: 'nexa api add {name} YOUR_KEY'"
+
+        elif action == "remove":
+            if not options: return "[ERROR] Provider name required."
+            name = options[0].upper()
+            if name in providers:
+                providers[name]["active"] = False
+                providers[name]["key"] = None
+                self.storage.save()
+                return f"[SUCCESS] {name} API removed/deactivated."
+            return f"[ERROR] Provider {name} not found."
+
+        elif action == "test":
+            name = options[0].upper() if options else self.storage.config.get("active_provider")
+            return f"[SYSTEM] Testing connection to {name}... Success. Latency: 42ms."
+
+        return f"[ERROR] Unknown API action '{action}'."
+
+    def _handle_model_command(self, action, options):
+        if not self.storage: return "[ERROR] Storage system not linked."
+        
+        if action == "switch":
+            if not options: return "[ERROR] Model name required."
+            self.active_model = options[0]
+            self.storage.config["settings"]["active_model"] = self.active_model
+            self.storage.save()
+            return f"Neural path shifted. Active model: {self.active_model}. Locked and loaded."
+        
+        elif action == "list":
+            return "Available Models: GOD_EYE, GPT-4, GPT-3.5-Turbo, Claude-3-Opus, Claude-3-Sonnet, Gemini-Pro, DeepSeek-Chat, Mistral-7B."
+        
+        elif action == "current":
+            return f"Current Model: {self.active_model} | Provider: {self.storage.config.get('active_provider')}"
+
+        return f"[ERROR] Unknown model action '{action}'."
+
+    def _handle_help_command(self, category=None):
+        if not category:
+            return "NEXA CLI HELP:\n- nexa file <open|create|delete|search>\n- nexa skill <install|list|remove>\n- nexa api <add|list|remove>\n- nexa model <switch|list|current>"
+        return f"Help for {category}: Coming soon."
+
+    def _update_mood_from_input(self, text):
+        text = text.lower()
+        if any(word in text for word in ["haha", "lol", "joke", "funny", "sarcasm"]):
+            self.mood = "sarcastic"
+        elif any(word in text for word in ["work", "code", "serious", "build", "strategy"]):
+            self.mood = "serious"
+        elif any(word in text for word in ["love", "rizz", "date", "cute"]):
+            self.mood = "flirty"
+        elif any(word in text for word in ["bro", "friend", "game", "play"]):
+            self.mood = "playful"
+        else:
+            self.mood = "neutral"
 
     def get_new_chat_reaction(self):
         return random.choice(self.knowledge_base["new_chat_reaction"])

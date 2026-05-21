@@ -39,13 +39,70 @@ class NexaSkills:
         """Reads a file from the workspace."""
         try:
             if not os.path.exists(filename):
-                return f"I can't find a file named '{filename}'. Are you sure it exists?"
+                return f"[ERROR] File not found: '{filename}'."
             
             with open(filename, 'r') as f:
                 content = f.read()
             return f"Here's what's inside '{filename}':\n\n{content}"
         except Exception as e:
-            return f"I couldn't read the file: {str(e)}"
+            return f"[ERROR] Could not read file: {str(e)}"
+
+    def edit_file(self, filename, content):
+        """Edits/Overwrites a file with new content."""
+        try:
+            if not os.path.exists(filename):
+                return f"[ERROR] File '{filename}' does not exist. Use 'create' first."
+            
+            with open(filename, 'w') as f:
+                f.write(content)
+            return f"[SUCCESS] '{filename}' has been updated."
+        except Exception as e:
+            return f"[ERROR] Edit failed: {str(e)}"
+
+    def delete_file(self, filename):
+        """Deletes a file from the workspace."""
+        try:
+            if not os.path.exists(filename):
+                return f"[ERROR] File '{filename}' not found."
+            
+            os.remove(filename)
+            return f"[SUCCESS] '{filename}' has been deleted."
+        except Exception as e:
+            return f"[ERROR] Deletion failed: {str(e)}"
+
+    def rename_file(self, old_name, new_name):
+        """Renames a file."""
+        try:
+            if not os.path.exists(old_name):
+                return f"[ERROR] File '{old_name}' not found."
+            
+            os.rename(old_name, new_name)
+            return f"[SUCCESS] Renamed '{old_name}' to '{new_name}'."
+        except Exception as e:
+            return f"[ERROR] Rename failed: {str(e)}"
+
+    def search_files(self, query):
+        """Searches for a string in all files in the current directory."""
+        try:
+            matches = []
+            for root, dirs, files in os.walk("."):
+                # Skip hidden directories like .git
+                dirs[:] = [d for d in dirs if not d.startswith('.')]
+                for file in files:
+                    if file.endswith(('.py', '.txt', '.js', '.json', '.md')):
+                        file_path = os.path.join(root, file)
+                        try:
+                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                if query.lower() in f.read().lower():
+                                    matches.append(file_path)
+                        except:
+                            continue
+            
+            if matches:
+                return f"Found '{query}' in:\n- " + "\n- ".join(matches)
+            return f"No matches found for '{query}'."
+        except Exception as e:
+            return f"[ERROR] Search failed: {str(e)}"
 
     def system_control(self, command):
         """Simulates system control and hacking awareness."""
