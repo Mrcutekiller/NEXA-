@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+nexa_memory.json
+.env
+models/
