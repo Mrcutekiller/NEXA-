@@ -484,10 +484,18 @@ class NexaLogicEngine:
             return self._handle_model_command(action, options)
         elif category == "profile":
             return self._handle_profile_command(action, options)
+        elif category == "auth":
+            return self._handle_auth_command(action, options)
         elif category == "help":
             return self._handle_help_command(action)
         
         return f"[ERROR] Unknown category '{category}'. Type 'nexa help' for guidance."
+
+    def _handle_auth_command(self, action, options):
+        """Handles authentication and session management."""
+        if action == "logout":
+            return "[SESSION_TERMINATED] User logged out successfully. Redirecting to neural onboarding..."
+        return "[ERROR] Unknown auth action. Use 'logout'."
 
     def _handle_profile_command(self, action, options):
         """Handles user profile management."""

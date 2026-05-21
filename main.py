@@ -33,6 +33,7 @@ class NexaCommandCompleter(Completer):
             "/skill list": "Show active skills",
             "/image analyze": "Visual data scan",
             "/voice toggle": "Toggle audio system",
+            "/auth logout": "Terminate session",
             "/exit": "Hibernate NEXA"
         }
 
@@ -114,30 +115,21 @@ class NexaAI:
                 return None
         
     def show_logo(self):
-        # High-Fidelity Professional Header (Text Left, Pixel Cat Right)
-        # Optimized for a clean, professional aesthetic during custom UI development
-        cat_logo = [
-            fr"{Fore.WHITE}   |\__/,|   (`\ ",
-            fr"{Fore.WHITE} _ |◕  ◕|__  _) )",
-            fr"{Fore.WHITE}(_   ^   _|=---' ",
-            fr"{Fore.WHITE}  |     |        "
-        ]
-        
+        # Ultra-Minimalist Professional Header (Logo Removed)
+        # Optimized for a clean, distraction-free environment
         info_header = [
-            f"{Fore.WHITE}{Style.BRIGHT}NEXA OMNI {Fore.WHITE}{self.engine.version}",
-            f"{Fore.WHITE}{Style.DIM}Neural Architecture v8.0 · {self.engine.creator}",
+            f"{Fore.WHITE}{Style.BRIGHT}NEXA OMNI SYSTEM {Fore.WHITE}{self.engine.version}",
+            f"{Fore.WHITE}{Style.DIM}Neural Intelligence Node · architect: {self.engine.creator}",
             f"{Fore.WHITE}{Style.DIM}Status: {Fore.GREEN}NODE_ACTIVE {Fore.WHITE}· Mode: {Fore.CYAN}GOD_EYE",
+            f"{Fore.WHITE}{Style.DIM}Link: {Fore.WHITE}ENCRYPTED_VAULT_256",
             f"{Fore.WHITE}{Style.DIM}Workspace: {os.getcwd()}"
         ]
 
         print("\n")
-        # Align logo to the right of the first few info lines
-        for i in range(max(len(cat_logo), len(info_header))):
-            info = info_header[i] if i < len(info_header) else ""
-            logo = cat_logo[i] if i < len(cat_logo) else ""
-            print(f" {info:<60} {logo}")
+        for info in info_header:
+            print(f" {info}")
             
-        print(f" {Fore.WHITE}{Style.DIM}" + "─" * 85)
+        print(f" {Fore.WHITE}{Style.DIM}" + "─" * 80)
 
     def _show_command_menu(self):
         """High-end interactive protocol selection menu."""
@@ -205,6 +197,13 @@ class NexaAI:
             
             if cli_response:
                 print(f" {Fore.WHITE}  L {Fore.GREEN}Done {Fore.WHITE}{Style.DIM}(0.01s)")
+                
+                # Check for Logout
+                if "[SESSION_TERMINATED]" in cli_response:
+                    print(f"\n {Fore.YELLOW}NEXA › {Fore.WHITE}{cli_response}\n")
+                    self._handle_logout()
+                    return
+
                 print(f"\n {Fore.CYAN}NEXA {Fore.WHITE}› {Fore.WHITE}{cli_response}\n")
                 self.memory.add_chat_turn("user", user_input)
                 self.memory.add_chat_turn("assistant", cli_response)
@@ -303,6 +302,22 @@ class NexaAI:
             return
         
         self.get_response(user_input)
+
+    def _handle_logout(self):
+        """Securely terminates session and redirects to onboarding."""
+        print(f" {Fore.YELLOW}• {Fore.WHITE}Invalidating neural session...")
+        time.sleep(1)
+        
+        # Reset memory in RAM
+        self.memory.memory["user_traits"] = {"name": None, "interests": [], "age": None}
+        self.memory.memory["chat_history"] = []
+        
+        # Optionally clear the saved file as well
+        # self.memory.save_memory() 
+        
+        print(f" {Fore.GREEN}✓ {Fore.WHITE}Session invalidated. Redirecting...\n")
+        time.sleep(1)
+        self.start_chat()
 
     def _handle_system_error(self, error):
         """Autonomously identifies and resolves system errors."""
