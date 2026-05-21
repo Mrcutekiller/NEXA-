@@ -78,31 +78,33 @@ class NexaAI:
                 return None
         
     def show_logo(self):
-        # Side-by-Side Professional Header (Text Left, Logo Right)
+        # High-Fidelity Neural-Core Branding (Balanced Composition)
         logo_lines = [
-            f"{Fore.RED}  _---_  ",
-            f"{Fore.RED} /     \ ",
-            f"{Fore.RED}| () () |",
-            f"{Fore.RED} \  ^  / ",
-            f"{Fore.RED}  |||||  ",
-            f"{Fore.RED}  |||||  "
+            f"{Fore.CYAN}    .----------.    ",
+            f"{Fore.CYAN}   /          / \   ",
+            f"{Fore.CYAN}  /  {Fore.WHITE}OMNI-CORE{Fore.CYAN} /   \  ",
+            f"{Fore.CYAN} /__________/     \ ",
+            f"{Fore.CYAN} \          \     / ",
+            f"{Fore.CYAN}  \  {Fore.RED}v8.0.0{Fore.CYAN}   \   /  ",
+            f"{Fore.CYAN}   \___________\ /   "
         ]
         
         info_lines = [
-            f"{Fore.WHITE}{Style.BRIGHT}Nexa OMNI {Fore.WHITE}{self.engine.version}",
-            f"{Fore.WHITE}{Style.DIM}Omni 8.0 (GOD_MODE) · {self.engine.creator}",
+            f"{Fore.WHITE}{Style.BRIGHT}NEXA OMNI SYSTEM",
+            f"{Fore.WHITE}{Style.DIM}High-Fidelity Neural OS Interface",
+            f"{Fore.WHITE}{Style.DIM}Architect: {self.engine.creator}",
+            f"{Fore.GREEN}NODE_STATUS: OPTIMAL",
+            f"{Fore.CYAN}LINK: ENCRYPTED_VAULT",
             f"{Fore.WHITE}{Style.DIM}{os.getcwd()}",
-            f"{Fore.GREEN}NODE_ACTIVE · ENCRYPTION_AES",
-            "",
             ""
         ]
 
         print("\n")
         for info, logo in zip(info_lines, logo_lines):
-            # Adjust padding for side-by-side alignment
+            # Precision alignment for side-by-side sophisticated layout
             print(f"{info:<50} {logo}")
             
-        print(f"{Fore.WHITE}─" * 70)
+        print(f"{Fore.WHITE}{Style.DIM}" + "─" * 75)
 
     def start_chat(self):
         os.system('cls' if os.name == 'nt' else 'clear')

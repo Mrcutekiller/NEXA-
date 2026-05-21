@@ -113,4 +113,19 @@ This project is licensed under the **MIT License**. See the `LICENSE` file for d
 
 ---
 
-**NEXA AI** - *Dangerously smart, uniquely alive.* 🔥
+## 🎨 Design Rationale: NEXA OMNI Visual Identity
+
+The NEXA OMNI v8.0.0 branding represents a shift from amateur terminal aesthetics to a high-fidelity, professional visual language.
+
+### Core Principles:
+*   **Isometric Geometry**: The "Omni-Core" logo utilizes isometric perspective to convey depth, stability, and multi-dimensional intelligence.
+*   **Balanced Composition**: A side-by-side header layout ensures technical information and brand identity have equal visual weight, improving scannability.
+*   **Neural Color Palette**: A cohesive mix of **Electric Cyan** (Neural Link), **Cyber Red** (Core Engine), and **Monochrome White** (Clarity) creates a sophisticated dark-mode aesthetic.
+*   **Refined Typography**: Moving away from cluttered prompts to a minimalist `> ` directive inspired by industry-leading technical interfaces.
+
+### Logo Variations:
+*   **Full-Color (Terminal)**: Optimized for ANSI-compatible high-contrast environments.
+*   **Monochrome (Print)**: Scalable vector-style ASCII for documentation and logs.
+*   **Inverted**: High-visibility design for light-themed console environments.
+
+---
