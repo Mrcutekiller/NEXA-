@@ -425,10 +425,24 @@ class NexaLogicEngine:
             return self._handle_api_command(action, options)
         elif category == "model":
             return self._handle_model_command(action, options)
+        elif category == "profile":
+            return self._handle_profile_command(action, options)
         elif category == "help":
             return self._handle_help_command(action)
         
         return f"[ERROR] Unknown category '{category}'. Type 'nexa help' for guidance."
+
+    def _handle_profile_command(self, action, options):
+        """Handles user profile management."""
+        if action == "view":
+            return f"Profile: {self.user_name} | Vibe: {self.mood} | Knowledge Level: OMNI"
+        elif action == "update" or action == "edit":
+            if options:
+                new_name = " ".join(options)
+                self.user_name = new_name
+                return f"Identity synchronized. Welcome, {new_name}."
+            return "[ERROR] New name required. Try: /profile update [Name]"
+        return "[ERROR] Unknown profile action. Use 'view' or 'update'."
 
     def _handle_file_command(self, action, options):
         if not options and action != "list":
