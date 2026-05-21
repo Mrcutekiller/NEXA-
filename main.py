@@ -114,34 +114,63 @@ class NexaAI:
                 return None
         
     def show_logo(self):
-        # Side-by-Side Header: Technical Info (Left) | NEXA Cat (Right)
-        # Inspired by the cute jumping black cat image
-        cat_lines = [
-            fr"{Fore.WHITE}      |\      _      ",
-            fr"{Fore.WHITE}      | \    / \     ",
-            fr"{Fore.WHITE} /\/\ |  \  /   \    ",
-            fr"{Fore.WHITE}( {Fore.RED}o o {Fore.WHITE})  \/     \   ",
-            fr"{Fore.WHITE} > ^ <          \  ",
-            fr"{Fore.WHITE} /    \          \ ",
-            fr"{Fore.WHITE}(      )          \\"
+        # Ultra-Professional Side-by-Side Header
+        # Refined Cat Silhouette: Precision Vector-Style
+        cat_vector = [
+            fr"{Fore.WHITE}      |\      _  ",
+            fr"{Fore.WHITE}      | \____/ | ",
+            fr"{Fore.WHITE}     /  {Fore.CYAN}◕  ◕{Fore.WHITE}  \ ",
+            fr"{Fore.WHITE}    |    {Fore.RED}^{Fore.WHITE}     | ",
+            fr"{Fore.WHITE}     \  ____  /  ",
+            fr"{Fore.WHITE}      \/    \/   ",
+            fr"{Fore.WHITE}       \____/    "
         ]
         
-        info_lines = [
-            f"{Fore.WHITE}{Style.BRIGHT}NEXA OMNI v8.0.0",
-            f"{Fore.WHITE}{Style.DIM}Neural Intelligence Interface",
+        info_panel = [
+            f"{Fore.WHITE}{Style.BRIGHT}NEXA OMNI SYSTEM",
+            f"{Fore.WHITE}{Style.DIM}Neural Intelligence v8.0.0",
             f"{Fore.WHITE}{Style.DIM}Architect: {self.engine.creator}",
-            f"{Fore.GREEN}NODE_ACTIVE · VAULT_LINKED",
-            f"{Fore.CYAN}ENCRYPTION_AES · GOD_MODE",
+            f"{Fore.GREEN}NODE_STATUS: OPTIMAL",
+            f"{Fore.CYAN}ENCRYPTION: AES_256_GCM",
             f"{Fore.WHITE}{Style.DIM}{os.getcwd()}",
             ""
         ]
 
         print("\n")
-        for info, cat in zip(info_lines, cat_lines):
-            # Precision side-by-side alignment
-            print(f"{info:<50} {cat}")
+        for info, cat in zip(info_panel, cat_vector):
+            # Precision Alignment for high-end professional look
+            print(f" {info:<55} {cat}")
             
-        print(f"{Fore.WHITE}{Style.DIM}" + "─" * 75)
+        print(f" {Fore.WHITE}{Style.DIM}" + "─" * 80)
+
+    def _show_command_menu(self):
+        """High-end interactive protocol selection menu."""
+        print(f"\n {Fore.WHITE}• {Fore.WHITE}{Style.DIM}NEXA Protocol Repository:")
+        print(f" {Fore.CYAN}┌──────────────────────────────────────────────────────────────────┐")
+        
+        sections = {
+            "FILE SYSTEM": [
+                ("/file open", "Read content"),
+                ("/file create", "New entry"),
+                ("/file search", "Query project")
+            ],
+            "NEURAL NODES": [
+                ("/model switch", "Change brain"),
+                ("/image analyze", "Vision scan"),
+                ("/voice toggle", "Audio link"),
+                ("/exit", "Hibernate")
+            ]
+        }
+        
+        for section, cmds in sections.items():
+            print(f" {Fore.CYAN}│ {Fore.MAGENTA}{Style.BRIGHT}{section:<64} {Fore.CYAN}│")
+            for cmd, desc in cmds:
+                print(f" {Fore.CYAN}│ {Fore.WHITE}{cmd:<30} {Fore.CYAN}→ {Fore.WHITE}{desc:<31} {Fore.CYAN}│")
+            if section != list(sections.keys())[-1]:
+                print(f" {Fore.CYAN}├──────────────────────────────────────────────────────────────────┤")
+                
+        print(f" {Fore.CYAN}└──────────────────────────────────────────────────────────────────┘")
+        print(f" {Fore.WHITE}{Style.DIM}Select protocol or continue link session.\n")
 
     def start_chat(self):
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -150,41 +179,41 @@ class NexaAI:
         summary = self.memory.get_context_summary()
         if summary.get("new_session"):
             reaction = self.engine.get_new_chat_reaction()
-            print(f"{Fore.WHITE}• {Fore.WHITE}{Style.DIM}Neural Link Session: {reaction}")
+            # Professional Status Message
+            print(f"{Fore.WHITE}• {Fore.WHITE}{Style.DIM}Neural Link Initialized: {Fore.WHITE}{reaction}")
             self.speak(reaction)
         
         if not summary.get("new_session"):
-            print(f"{Fore.WHITE}{Style.DIM}Awaiting command. Type / for menu.\n")
+            print(f"{Fore.WHITE}{Style.DIM}Link Stable. Awaiting input. (Type / for protocols)\n")
 
     def get_response(self, user_input):
         self.memory.analyze_and_update_vibe(user_input)
         
-        # Claude-style Thought/Action Display
-        print(f"\n{Fore.WHITE}• {Fore.WHITE}{Style.DIM}I'll analyze your request and determine the best course of action...")
+        # Professional Execution Flow
+        print(f"\n{Fore.WHITE}• {Fore.WHITE}{Style.DIM}Analyzing neural input patterns...")
         time.sleep(0.3)
         
         # Handle Slash Commands
         if user_input.startswith("/"):
-            # Convert /command to nexa command for the engine
             nexa_cmd = user_input.replace("/", "nexa ", 1)
-            print(f"{Fore.GREEN}• {Fore.WHITE}Executing({Fore.CYAN}{user_input}{Fore.WHITE})")
+            print(f"{Fore.GREEN}• {Fore.WHITE}Executing Protocol({Fore.CYAN}{user_input}{Fore.WHITE})")
             cli_response = self.engine.handle_cli_command(nexa_cmd)
             if cli_response:
-                print(f"{Fore.WHITE}  L {Fore.GREEN}Done {Fore.WHITE}{Style.DIM}(neural processing complete)")
+                print(f"{Fore.WHITE}  L {Fore.GREEN}Success {Fore.WHITE}{Style.DIM}(neural processing finalized)")
                 print(f"\n{Fore.CYAN}[◕◡◕] NEXA {Fore.WHITE}› {Fore.WHITE}{cli_response}\n")
                 self.memory.add_chat_turn("user", user_input)
                 self.memory.add_chat_turn("assistant", cli_response)
                 return
         
-        # Thinking Animation
-        print(f"{Fore.RED}* {Fore.RED}Thinking... {Fore.WHITE}{Style.DIM}(esc to interrupt)")
-        time.sleep(0.8)
+        # Neural Thinking Animation
+        print(f"{Fore.RED}* {Fore.RED}Processing... {Fore.WHITE}{Style.DIM}(esc to interrupt)")
+        time.sleep(0.6)
         
         response = self.engine.generate_response(user_input)
         
-        # Final Claude-style Response
-        print(f"\n{Fore.WHITE}• {Fore.CYAN}Nexa Omni {Fore.WHITE}- {Fore.WHITE}Intelligence Result")
-        print(f"\n{Fore.WHITE}{response}\n")
+        # Refined Response Header
+        print(f"\n{Fore.WHITE}• {Fore.CYAN}Nexa Omni {Fore.WHITE}⬢ {Fore.WHITE}Intelligence Result")
+        print(f"{Fore.WHITE}{response}\n")
         
         self.speak(response)
         self.memory.add_chat_turn("user", user_input)
