@@ -373,8 +373,8 @@ class NexaLogicEngine:
             }
             flair_list = flairs.get(self.mood, flairs["neutral"])
             response += random.choice(flair_list)
-             
-         return response
+            
+        return response
 
     def handle_cli_command(self, command_str):
         """Routes nexa <category> <action> commands."""
