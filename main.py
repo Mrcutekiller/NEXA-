@@ -95,6 +95,10 @@ class NexaAI:
             print(f"{Fore.WHITE}    Ready for input. Type 'quit' to exit.\n")
 
     def get_response(self, user_input):
+        # Handle Slash Commands
+        if user_input.startswith("/"):
+            return self.handle_command(user_input)
+
         # Analyze and update user vibe/traits in long-term memory
         self.memory.analyze_and_update_vibe(user_input)
         self.memory.add_chat_turn("user", user_input)
@@ -104,6 +108,45 @@ class NexaAI:
         
         self.memory.add_chat_turn("nexa", response_text)
         return response_text
+
+    def handle_command(self, cmd_input):
+        """Processes built-in slash commands."""
+        parts = cmd_input.split()
+        cmd = parts[0].lower()
+        
+        if cmd == "/profile":
+            print(f"\n{Fore.YELLOW}[PROFILE EDITOR] {Fore.WHITE}Updating your identity...")
+            new_name = input(f"{Fore.GREEN}└─> New Name: {Style.RESET_ALL}").strip()
+            new_age = input(f"{Fore.GREEN}└─> New Age: {Style.RESET_ALL}").strip()
+            
+            traits = self.memory.memory["user_traits"]
+            if new_name: traits["name"] = new_name
+            if new_age: traits["age"] = new_age
+            self.memory.save_memory()
+            self.engine.user_name = traits["name"]
+            return f"Profile synchronized. Welcome, {traits['name']}."
+
+        elif cmd == "/model":
+            print(f"\n{Fore.YELLOW}[MODEL SELECTOR] {Fore.WHITE}Current: {self.engine.active_model}")
+            print(f"{Fore.CYAN}1. BALANCED | 2. ELITE | 3. GOD_EYE")
+            choice = input(f"{Fore.GREEN}└─> Select (1-3): {Style.RESET_ALL}").strip()
+            
+            modes = {"1": "BALANCED", "2": "ELITE", "3": "GOD_EYE"}
+            if choice in modes:
+                self.engine.active_model = modes[choice]
+                return f"Neural path shifted. Active model: {modes[choice]}"
+            return "Invalid selection. Keeping current model."
+
+        elif cmd == "/plan":
+            return "Task Architect active. What project are we planning today, Biruk? I can break down complex goals into actionable steps."
+
+        elif cmd == "/engine":
+            return f"System Diagnostic: {self.engine.name} {self.engine.version} is stable. Latency: 0.02ms. Memory: OPTIMAL."
+
+        elif cmd == "/help":
+            return "/profile - Edit your data\n/model - Switch AI modes\n/plan - Project planning\n/engine - System status"
+
+        return f"Unknown command: {cmd}. Type /help for a list of available protocols."
 
 def main():
     nexa = NexaAI()

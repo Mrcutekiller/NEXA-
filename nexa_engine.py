@@ -12,9 +12,12 @@ class NexaLogicEngine:
         
         # Identity, Creator, and Version Info
         self.name = "NEXA AI"
-        self.version = "v6.0.0-GOD_EYE"
+        self.version = "v6.5.0-COMMANDER"
         self.creator = "Biruk Fikru (mrcute_killer)"
         self.birthday = datetime(2025, 5, 21)
+        
+        # System Settings
+        self.active_model = "GOD_EYE" # Default mode
         
         # User Context
         self.user_summary = user_summary or {"vibe": "neutral", "topics": [], "count": 0, "name": "Human"}
