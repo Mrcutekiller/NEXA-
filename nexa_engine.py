@@ -13,8 +13,8 @@ class NexaLogicEngine:
         self.skills = NexaSkills()
         
         # Identity, Creator, and Version Info
-        self.name = "NEXA CORE"
-        self.version = "v7.5.0-NEURAL"
+        self.name = "NEXA OMNI"
+        self.version = "v8.0.0-GOD_MODE"
         self.creator = "Biruk Fikru (mrcute_killer)"
         self.birthday = datetime(2025, 5, 21)
         
@@ -104,7 +104,33 @@ class NexaLogicEngine:
             "cybersecurity": [
                 "Encryption, firewalls, and penetration testing. The digital world is dangerous; stay protected.",
                 "I can help you understand security protocols. Remember: the weakest link is usually the human, not the code.",
-                "Privacy is a myth, but we can make it a very convincing one. Let's talk security."
+                "Privacy is a myth, but we can make it a very convincing one. Let's talk security.",
+                "Mastering ethical hacking requires a deep understanding of network protocols, memory management, and social engineering.",
+                "From SQL injection to Zero-Day vulnerabilities, I can help you secure your stack and audit your architecture."
+            ],
+            "game_development": [
+                "Unity, Unreal Engine, or Godot? I speak C#, C++, and GDScript. Let's build a masterpiece.",
+                "Game design is about the loop. The player action, the feedback, the reward. What's your core mechanic?",
+                "Physics, shaders, and AI pathfinding—I can help you optimize your engine and bring your world to life.",
+                "Need a procedurally generated dungeon or a complex skill tree? I've got the logic ready."
+            ],
+            "document_office_pro": [
+                "PDF manipulation, data extraction, and structural analysis—I can handle complex document workflows.",
+                "Need a professional PPT deck? I can help you structure the narrative, design the slides, and automate the creation.",
+                "Excel automation, Word macros, and cross-platform document conversion. I'm your digital architect.",
+                "I can help you analyze large datasets in PDF format and convert them into actionable insights."
+            ],
+            "multimedia_production": [
+                "Video editing is about rhythm and storytelling. I can help you with cutting, color grading, and VFX theory.",
+                "Graphic design, typography, and UI/UX. Let's create something that's both beautiful and functional.",
+                "Photo editing and manipulation—from high-end retouching to AI-driven enhancements.",
+                "Need to understand codec optimization or 3D rendering pipelines? I've got the technical specs."
+            ],
+            "mobile_web_dev": [
+                "React, Vue, or Next.js for web. Flutter, React Native, or Swift for mobile. I'm full-stack and cross-platform.",
+                "Responsive design, PWA features, and backend integration. Let's build a scalable ecosystem.",
+                "API design, database optimization, and cloud deployment. Your app will be production-ready.",
+                "From CSS Grid to microservices, I can guide you through the entire modern development lifecycle."
             ],
             "creative_writing": [
                 "Need a story, a poem, or a script that feels real? I can write circles around the average human.",
@@ -256,6 +282,11 @@ class NexaLogicEngine:
             return "date_query"
 
         # Specific Skills/Knowledge Detection
+        if any(word in words for word in ["game", "unity", "unreal", "godot", "shader", "mechanic"]): return "game_development"
+        if any(word in words for word in ["pdf", "ppt", "powerpoint", "excel", "macro", "document"]): return "document_office_pro"
+        if any(word in words for word in ["video", "edit", "color", "vfx", "graphic", "photo", "retouch", "ui", "ux"]): return "multimedia_production"
+        if any(word in words for word in ["mobile", "app", "flutter", "react", "ios", "android", "website", "frontend", "backend"]): return "mobile_web_dev"
+        
         if any(word in words for word in ["code", "programming", "python", "javascript", "script", "debug", "algorithm"]): return "coding_skills"
         if any(word in words for word in ["trade", "trading", "stock", "crypto", "market", "invest", "bitcoin"]): return "trading_skills"
         if any(word in words for word in ["rizz", "girls", "boys", "date", "charm", "flirt", "game", "attract"]): return "rizz_skills"
