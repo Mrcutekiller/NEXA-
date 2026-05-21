@@ -7,3 +7,4 @@ SpeechRecognition
 PyAudio
 Pillow
 openai
+prompt_toolkit

@@ -13,14 +13,50 @@ from nexa_storage import NexaStorage
 from nexa_engine import NexaLogicEngine
 from memory_manager import MemoryManager
 
+# Interactive Toolkit Imports
+from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.styles import Style as ToolkitStyle
+from prompt_toolkit.formatted_text import HTML
+
 # Initialize colorama
 init(autoreset=True)
+
+class NexaCommandCompleter(Completer):
+    def __init__(self):
+        self.commands = {
+            "/model": "Switch neural model",
+            "/profile": "Update user identity",
+            "/file open": "Read file content",
+            "/file create": "Create new file",
+            "/file search": "Search project",
+            "/skill list": "Show active skills",
+            "/image analyze": "Visual data scan",
+            "/voice toggle": "Toggle audio system",
+            "/exit": "Hibernate NEXA"
+        }
+
+    def get_completions(self, document, complete_event):
+        text = document.text_before_cursor
+        # Trigger only if text starts with '/'
+        if text.startswith('/'):
+            word = text[1:]
+            for cmd, desc in self.commands.items():
+                if cmd[1:].startswith(word):
+                    yield Completion(
+                        cmd,
+                        start_position=-len(text),
+                        display=HTML(f'<style color="cyan">{cmd}</style> <style color="gray">({desc})</style>')
+                    )
 
 class NexaAI:
     def __init__(self):
         self.memory = MemoryManager()
         self.storage = NexaStorage()
         self.engine = NexaLogicEngine(user_summary=self.memory.get_context_summary(), storage=self.storage)
+        
+        # Interactive Session
+        self.session = PromptSession(completer=NexaCommandCompleter())
         
         # Voice Settings
         self.voice_enabled = True
@@ -125,11 +161,14 @@ class NexaAI:
         
         # Claude-style Thought/Action Display
         print(f"\n{Fore.WHITE}• {Fore.WHITE}{Style.DIM}I'll analyze your request and determine the best course of action...")
-        time.sleep(0.5)
+        time.sleep(0.3)
         
-        if user_input.lower().startswith("nexa "):
+        # Handle Slash Commands
+        if user_input.startswith("/"):
+            # Convert /command to nexa command for the engine
+            nexa_cmd = user_input.replace("/", "nexa ", 1)
             print(f"{Fore.GREEN}• {Fore.WHITE}Executing({Fore.CYAN}{user_input}{Fore.WHITE})")
-            cli_response = self.engine.handle_cli_command(user_input)
+            cli_response = self.engine.handle_cli_command(nexa_cmd)
             if cli_response:
                 print(f"{Fore.WHITE}  L {Fore.GREEN}Done {Fore.WHITE}{Style.DIM}(neural processing complete)")
                 print(f"\n{Fore.CYAN}[◕◡◕] NEXA {Fore.WHITE}› {Fore.WHITE}{cli_response}\n")
@@ -194,25 +233,24 @@ class NexaAI:
             self._handle_onboarding()
             return
 
-        # Modern Prompt Design
-        prompt = f"{Fore.WHITE}{Style.BRIGHT}> {Style.RESET_ALL}"
-        
-        if self.listen_enabled:
-            user_input = self.listen()
-            if not user_input:
-                return
-        else:
-            user_input = input(prompt).strip()
-        
+        # Interactive Prompt using Prompt Toolkit
+        try:
+            if self.listen_enabled:
+                user_input = self.listen()
+                if not user_input:
+                    return
+            else:
+                user_input = self.session.prompt("> ").strip()
+        except EOFError:
+            sys.exit(0)
+        except KeyboardInterrupt:
+            return
+
         if not user_input:
             return
             
-        # Slash Command Menu
-        if user_input == "/":
-            self._show_command_menu()
-            return
-            
-        if user_input.lower() in ["exit", "quit", "bye"]:
+        # Passive Command Execution
+        if user_input.lower() in ["exit", "quit", "bye", "/exit"]:
             print(f"\n{Fore.CYAN}NEXA: {Fore.WHITE}Systems hibernating. Stay sharp, {self.engine.user_name}.\n")
             sys.exit(0)
         
@@ -227,35 +265,6 @@ class NexaAI:
             return
         
         self.get_response(user_input)
-
-    def _show_command_menu(self):
-        """Professional Claude-style command interface menu."""
-        print(f"\n{Fore.WHITE}• {Fore.WHITE}{Style.DIM}NEXA OMNI Protocols Available:")
-        print(f"{Fore.CYAN}┌──────────────────────────────────────────────────────────────────┐")
-        
-        sections = {
-            "FILE OPERATIONS": [
-                ("/file open <path>", "Read content"),
-                ("/file create <path>", "New file"),
-                ("/file search <query>", "Find text")
-            ],
-            "AI & SYSTEMS": [
-                ("/model switch <name>", "Change brain"),
-                ("/image analyze <path>", "Scan visual"),
-                ("/voice toggle", "Audio system"),
-                ("/exit", "Hibernate")
-            ]
-        }
-        
-        for section, cmds in sections.items():
-            print(f"{Fore.CYAN}│ {Fore.MAGENTA}{Style.BRIGHT}{section:<64} {Fore.CYAN}│")
-            for cmd, desc in cmds:
-                print(f"{Fore.CYAN}│ {Fore.WHITE}{cmd:<30} {Fore.CYAN}→ {Fore.WHITE}{desc:<31} {Fore.CYAN}│")
-            if section != list(sections.keys())[-1]:
-                print(f"{Fore.CYAN}├──────────────────────────────────────────────────────────────────┤")
-                
-        print(f"{Fore.CYAN}└──────────────────────────────────────────────────────────────────┘")
-        print(f"{Fore.WHITE}{Style.DIM}Execute protocol or continue neural link session.\n")
 
     def _handle_system_error(self, error):
         """Autonomously identifies and resolves system errors."""
