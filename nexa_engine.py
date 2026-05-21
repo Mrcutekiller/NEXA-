@@ -266,6 +266,16 @@ class NexaLogicEngine:
         text = text.lower().strip()
         words = text.split()
         
+        # System Agent / Browser / App Detection
+        if any(word in words for word in ["search", "google", "browser", "online", "lookup"]):
+            return "skill_web_search"
+        if any(word in words for word in ["open", "launch", "start"]) and not "file" in words:
+            return "skill_open_app"
+        if any(word in words for word in ["video", "edit", "capcut", "movie", "montage"]):
+            return "skill_edit_video"
+        if any(word in words for word in ["folder", "directory", "files", "ls", "list"]):
+            return "skill_list_dir"
+
         # Image Analysis Detection
         if any(word in words for word in ["image", "photo", "picture", "scan", "analyze"]) and any(word in words for word in ["this", "image", "file", "path"]):
             return "skill_image_analysis"
@@ -355,6 +365,24 @@ class NexaLogicEngine:
         response_type = self.analyze_input(user_input)
         
         # Skill Command Handlers
+        if response_type == "skill_web_search":
+            query_match = re.search(r'(?:search|google|lookup)\s+(?:for\s+)?(.+)', user_input, re.IGNORECASE)
+            query = query_match.group(1) if query_match else user_input
+            return self.skills.web_search(query)
+
+        if response_type == "skill_open_app":
+            app_match = re.search(r'(?:open|launch|start)\s+(.+)', user_input, re.IGNORECASE)
+            app_name = app_match.group(1) if app_match else user_input
+            return self.skills.open_application(app_name)
+
+        if response_type == "skill_edit_video":
+            return self.skills.edit_video_agent(user_input)
+
+        if response_type == "skill_list_dir":
+            path_match = re.search(r'(?:folder|directory|list)\s+(.+)', user_input, re.IGNORECASE)
+            path = path_match.group(1).strip() if path_match else "."
+            return self.skills.list_directory(path)
+
         if response_type == "skill_image_analysis":
             # Attempt to find path in input
             path_match = re.search(r'([a-zA-Z]:[\\/][^ \n]+|[^ \n]+\.(png|jpg|jpeg|webp))', user_input)

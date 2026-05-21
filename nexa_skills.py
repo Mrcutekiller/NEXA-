@@ -126,14 +126,64 @@ class NexaSkills:
             from PIL import Image
             img = Image.open(image_path)
             width, height = img.size
-            format = img.format
+            img_format = img.format
             
             analysis_scenarios = [
-                f"I've scanned the {format} image ({width}x{height}). I detect complex visual patterns and high-frequency data consistent with modern digital architecture.",
+                f"I've scanned the {img_format} image ({width}x{height}). I detect complex visual patterns and high-frequency data consistent with modern digital architecture.",
                 f"Neural analysis of '{os.path.basename(image_path)}' complete. Object recognition suggests a multi-layered composition with interesting geometric properties.",
                 f"Image processing active. This {width}x{height} file contains visual data that my vision model classifies as 'Intriguing'. Want me to enhance the details?"
             ]
-            import random
             return random.choice(analysis_scenarios)
         except Exception as e:
             return f"[ERROR] Image analysis failed: {str(e)}"
+
+    def web_search(self, query):
+        """Opens a browser for web search."""
+        import webbrowser
+        url = f"https://www.google.com/search?q={query}"
+        try:
+            webbrowser.open(url)
+            return f"[SUCCESS] Browser launched. Searching for: {query}"
+        except Exception as e:
+            return f"[ERROR] Failed to open browser: {str(e)}"
+
+    def open_application(self, app_name):
+        """Attempts to open a system application."""
+        import subprocess
+        import platform
+        
+        app_name = app_name.lower()
+        try:
+            if "capcut" in app_name:
+                # Simulated common paths for CapCut on Windows
+                capcut_path = os.path.expanduser("~\\AppData\\Local\\CapCut\\Apps\\CapCut.exe")
+                if os.path.exists(capcut_path):
+                    subprocess.Popen([capcut_path])
+                    return "[SUCCESS] CapCut initialized. Neural video editing node active."
+                else:
+                    return "[ERROR] CapCut not found in default path. Please provide the specific executable path."
+            
+            if platform.system() == "Windows":
+                subprocess.Popen(f"start {app_name}", shell=True)
+            else:
+                subprocess.Popen(["open", "-a", app_name])
+            return f"[SUCCESS] Launching {app_name}..."
+        except Exception as e:
+            return f"[ERROR] Could not open {app_name}: {str(e)}"
+
+    def edit_video_agent(self, instructions):
+        """Simulates a video editing agent sequence."""
+        return f"[AGENT] Initializing Video Core. Objective: '{instructions}'. Step 1: Launching editor. Step 2: Importing assets. Step 3: Applying neural filters. This will take a moment..."
+
+    def list_directory(self, path="."):
+        """Lists files and folders in a directory."""
+        try:
+            items = os.listdir(path)
+            files = [f for f in items if os.path.isfile(os.path.join(path, f))]
+            folders = [d for d in items if os.path.isdir(os.path.join(path, d))]
+            res = f"Directory Content for '{path}':\n"
+            res += f"Folders: {', '.join(folders) if folders else 'None'}\n"
+            res += f"Files: {', '.join(files) if files else 'None'}"
+            return res
+        except Exception as e:
+            return f"[ERROR] Directory access failed: {str(e)}"
