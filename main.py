@@ -117,13 +117,13 @@ class NexaAI:
         # Side-by-Side Header: Technical Info (Left) | NEXA Cat (Right)
         # Inspired by the cute jumping black cat image
         cat_lines = [
-            f"{Fore.WHITE}      |\      _      ",
-            f"{Fore.WHITE}      | \    / \     ",
-            f"{Fore.WHITE} /\/\ |  \  /   \    ",
-            f"{Fore.WHITE}( {Fore.RED}o o {Fore.WHITE})  \/     \   ",
-            f"{Fore.WHITE} > ^ <          \  ",
-            f"{Fore.WHITE} /    \          \ ",
-            f"{Fore.WHITE}(      )          \\"
+            fr"{Fore.WHITE}      |\      _      ",
+            fr"{Fore.WHITE}      | \    / \     ",
+            fr"{Fore.WHITE} /\/\ |  \  /   \    ",
+            fr"{Fore.WHITE}( {Fore.RED}o o {Fore.WHITE})  \/     \   ",
+            fr"{Fore.WHITE} > ^ <          \  ",
+            fr"{Fore.WHITE} /    \          \ ",
+            fr"{Fore.WHITE}(      )          \\"
         ]
         
         info_lines = [
