@@ -78,103 +78,63 @@ class NexaAI:
                 return None
         
     def show_logo(self):
-        # Neural Startup Animation
-        def _animate_3d():
-            frames = [
-                "    [  .  ]", "    [ ..  ]", "    [ ... ]", "    [  .. ]", "    [   . ]", "    [     ]"
-            ]
-            for _ in range(3):
-                for frame in frames:
-                    print(f"\r{Fore.CYAN}{Style.BRIGHT}    SYNCHRONIZING NEURAL LINK {frame}", end="", flush=True)
-                    time.sleep(0.1)
-            print("\r" + " " * 50 + "\r", end="")
-
-        _animate_3d()
-
-        logo = fr"""
-{Fore.CYAN}{Style.BRIGHT}               +----------+
-{Fore.CYAN}{Style.BRIGHT}              /|         /|
-{Fore.CYAN}{Style.BRIGHT}             / |        / |
-{Fore.CYAN}{Style.BRIGHT}            *--+-------*  |
-{Fore.CYAN}{Style.BRIGHT}            |  |  {Fore.WHITE}◕ ◡ ◕{Fore.CYAN}{Style.BRIGHT} |  |
-{Fore.CYAN}{Style.BRIGHT}            |  |       |  |
-{Fore.CYAN}{Style.BRIGHT}            |  +-------+--+
-{Fore.CYAN}{Style.BRIGHT}            | /        | /
-{Fore.CYAN}{Style.BRIGHT}            |/         |/
-{Fore.CYAN}{Style.BRIGHT}            *----------*
-{Fore.MAGENTA}          NEXA OMNI | THE CUTE CUBE OF POWER
+        # Professional Claude-style Header
+        logo_pixel = fr"""
+{Fore.RED}      _---_
+{Fore.RED}     /     \
+{Fore.RED}    | () () |
+{Fore.RED}     \  ^  /
+{Fore.RED}      |||||
+{Fore.RED}      |||||
         """
-        print(logo)
         
-        # Matrix-like top header
-        print(f"{Fore.GREEN}{Style.DIM}" + "·" * 60)
-        print(f"{Fore.WHITE}    [SYSTEM] {self.engine.name} {self.engine.version} | {Fore.GREEN}NODE_ACTIVE")
-        print(f"{Fore.WHITE}    [ARCHITECT] {self.engine.creator} | {Fore.CYAN}ENCRYPTION_AES")
-        print(f"{Fore.GREEN}    [STATUS] {self.engine.active_model} ONLINE | VAULT LINKED")
-        print(f"{Fore.GREEN}{Style.DIM}" + "·" * 60)
-        print(f"{Fore.MAGENTA}    " + "─" * 50)
+        print(f"\n{logo_pixel}")
+        print(f"{Fore.WHITE}{Style.BRIGHT}Nexa Code {Fore.WHITE}{self.engine.version}")
+        print(f"{Fore.WHITE}{Style.DIM}Omni 8.0 (GOD_MODE) · {self.engine.creator}")
+        print(f"{Fore.WHITE}{Style.DIM}{os.getcwd()}")
+        print(f"{Fore.WHITE}─" * 60)
 
     def start_chat(self):
         os.system('cls' if os.name == 'nt' else 'clear')
         self.show_logo()
         
-        # Onboarding for first-time users
-        traits = self.memory.memory["user_traits"]
-        if traits["name"] is None:
-            print(f"\n{Fore.CYAN}NEXA: {Fore.WHITE}Synchronizing neural patterns... I need a few details.")
-            
-            name = input(f"{Fore.MAGENTA}┌──(SYSTEM)─[Identity?]\n└─> {Style.RESET_ALL}").strip()
-            interests = input(f"{Fore.MAGENTA}┌──(SYSTEM)─[Objectives? (comma separated)]\n└─> {Style.RESET_ALL}").strip()
-            
-            # Voice preference
-            voice_pref = input(f"{Fore.MAGENTA}┌──(SYSTEM)─[Enable Voice Chat? (y/n)]\n└─> {Style.RESET_ALL}").strip().lower()
-            self.voice_enabled = True if voice_pref == 'y' else False
-            self.listen_enabled = self.voice_enabled
-            
-            traits["name"] = name if name else "Operator"
-            traits["interests"] = [i.strip() for i in interests.split(",")] if interests else []
-            self.memory.save_memory()
-            
-            self.engine.user_name = traits["name"]
-            
-            welcome_msg = f"Identity confirmed. Welcome, {traits['name']}. Voice systems {'ACTIVE' if self.voice_enabled else 'OFF'}."
-            print(f"\n{Fore.CYAN}NEXA: {Fore.WHITE}{welcome_msg}\n")
-            if self.voice_enabled:
-                self.speak(welcome_msg)
-            time.sleep(1)
-        
         summary = self.memory.get_context_summary()
         if summary.get("new_session"):
             reaction = self.engine.get_new_chat_reaction()
-            print(f"{Fore.CYAN}NEXA: {Fore.WHITE}{reaction}\n")
+            print(f"{Fore.WHITE}• {Fore.WHITE}{Style.DIM}Neural Link Session: {reaction}")
             self.speak(reaction)
         
         if not summary.get("new_session"):
-            print(f"{Fore.WHITE}    Neural link established. Awaiting input. (Type / for commands)\n")
+            print(f"{Fore.WHITE}{Style.DIM}Awaiting command. Type / for menu.\n")
 
     def get_response(self, user_input):
         self.memory.analyze_and_update_vibe(user_input)
         
+        # Claude-style Thought/Action Display
+        print(f"\n{Fore.WHITE}• {Fore.WHITE}{Style.DIM}I'll analyze your request and determine the best course of action...")
+        time.sleep(0.5)
+        
         if user_input.lower().startswith("nexa "):
+            print(f"{Fore.GREEN}• {Fore.WHITE}Executing({Fore.CYAN}{user_input}{Fore.WHITE})")
             cli_response = self.engine.handle_cli_command(user_input)
             if cli_response:
-                print(f"{Fore.CYAN}{Style.BRIGHT}[NEXA CLI]:\n{Fore.WHITE}{cli_response}\n")
+                print(f"{Fore.WHITE}  L {Fore.GREEN}Done {Fore.WHITE}{Style.DIM}(neural processing complete)")
+                print(f"\n{Fore.CYAN}[◕◡◕] NEXA {Fore.WHITE}› {Fore.WHITE}{cli_response}\n")
                 self.memory.add_chat_turn("user", user_input)
                 self.memory.add_chat_turn("assistant", cli_response)
                 return
         
+        # Thinking Animation
+        print(f"{Fore.RED}* {Fore.RED}Thinking... {Fore.WHITE}{Style.DIM}(esc to interrupt)")
+        time.sleep(0.8)
+        
         response = self.engine.generate_response(user_input)
         
-        # Professional UI Response Format
-        print(f"\n{Fore.CYAN}[◕◡◕] NEXA {Fore.WHITE}› {Fore.WHITE}", end="", flush=True)
-        for char in response:
-            print(char, end="", flush=True)
-            time.sleep(0.005)
-        print("\n")
+        # Final Claude-style Response
+        print(f"\n{Fore.WHITE}• {Fore.CYAN}Nexa Omni {Fore.WHITE}- {Fore.WHITE}Intelligence Result")
+        print(f"\n{Fore.WHITE}{response}\n")
         
-        # Speak the response
         self.speak(response)
-        
         self.memory.add_chat_turn("user", user_input)
         self.memory.add_chat_turn("assistant", response)
 
@@ -191,9 +151,38 @@ class NexaAI:
                 print(f"\n{Fore.CYAN}NEXA: {Fore.WHITE}Emergency shutdown initiated...")
                 break
 
+    def _handle_onboarding(self):
+        """Professional onboarding sequence matching Claude's style."""
+        print(f"\n{Fore.CYAN}Nexa {Fore.WHITE}› {Fore.WHITE}Welcome to Nexa OMNI. Let's initialize your environment.")
+        
+        name = input(f"{Fore.WHITE}• {Fore.WHITE}{Style.DIM}Enter your identity: {Style.RESET_ALL}").strip()
+        interests = input(f"{Fore.WHITE}• {Fore.WHITE}{Style.DIM}Define your objectives (comma separated): {Style.RESET_ALL}").strip()
+        
+        voice_pref = input(f"{Fore.WHITE}• {Fore.WHITE}{Style.DIM}Enable neural voice synthesis? (y/n): {Style.RESET_ALL}").strip().lower()
+        self.voice_enabled = True if voice_pref == 'y' else False
+        self.listen_enabled = self.voice_enabled
+        
+        traits = self.memory.memory["user_traits"]
+        traits["name"] = name if name else "Operator"
+        traits["interests"] = [i.strip() for i in interests.split(",")] if interests else []
+        self.memory.save_memory()
+        self.engine.user_name = traits["name"]
+        
+        welcome_msg = f"Neural interface established. Welcome, {traits['name']}."
+        print(f"\n{Fore.GREEN}✓ {Fore.WHITE}{welcome_msg}\n")
+        if self.voice_enabled:
+            self.speak(welcome_msg)
+        time.sleep(1)
+
     def _main_loop(self):
+        # Professional UI Onboarding Check
+        traits = self.memory.memory["user_traits"]
+        if traits["name"] is None:
+            self._handle_onboarding()
+            return
+
         # Modern Prompt Design
-        prompt = f"{Fore.MAGENTA}┌──({Fore.WHITE}{self.engine.user_name}{Fore.MAGENTA})─[{Fore.WHITE}nexa-os{Fore.MAGENTA}]\n{Fore.MAGENTA}└─{Fore.CYAN}▶ {Style.RESET_ALL}"
+        prompt = f"{Fore.WHITE}{Style.BRIGHT}> {Style.RESET_ALL}"
         
         if self.listen_enabled:
             user_input = self.listen()
