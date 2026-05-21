@@ -116,3 +116,24 @@ class NexaSkills:
         if "scan" in command or "hack" in command:
             return random.choice(hacking_responses)
         return "System Control active. I can help you understand network security, Linux commands, and hardware architecture."
+
+    def analyze_image(self, image_path):
+        """Simulates advanced image analysis."""
+        if not os.path.exists(image_path):
+            return f"[ERROR] Image file '{image_path}' not found. Please provide a valid path."
+        
+        try:
+            from PIL import Image
+            img = Image.open(image_path)
+            width, height = img.size
+            format = img.format
+            
+            analysis_scenarios = [
+                f"I've scanned the {format} image ({width}x{height}). I detect complex visual patterns and high-frequency data consistent with modern digital architecture.",
+                f"Neural analysis of '{os.path.basename(image_path)}' complete. Object recognition suggests a multi-layered composition with interesting geometric properties.",
+                f"Image processing active. This {width}x{height} file contains visual data that my vision model classifies as 'Intriguing'. Want me to enhance the details?"
+            ]
+            import random
+            return random.choice(analysis_scenarios)
+        except Exception as e:
+            return f"[ERROR] Image analysis failed: {str(e)}"

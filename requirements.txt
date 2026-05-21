@@ -3,3 +3,7 @@ beautifulsoup4
 requests
 python-dotenv
 colorama
+SpeechRecognition
+PyAudio
+Pillow
+openai

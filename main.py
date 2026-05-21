@@ -4,6 +4,9 @@ import time
 import textwrap
 import pyttsx3
 import logging
+import re
+import threading
+import speech_recognition as sr
 from colorama import Fore, Style, init
 from nexa_storage import NexaStorage
 
@@ -17,33 +20,77 @@ class NexaAI:
     def __init__(self):
         self.memory = MemoryManager()
         self.storage = NexaStorage()
-        # Initialize engine with long-term memory summary and storage
         self.engine = NexaLogicEngine(user_summary=self.memory.get_context_summary(), storage=self.storage)
+        
+        # Voice Settings
+        self.voice_enabled = True
+        self.listen_enabled = False
         
         # Initialize Voice Engine
         try:
             self.voice = pyttsx3.init()
-            self.voice.setProperty('rate', 175) # Speed of speech
-            self.voice.setProperty('volume', 0.9) # Volume (0.0 to 1.0)
-            # Set to a more "personality" driven voice if available
+            self.voice.setProperty('rate', 180) 
+            self.voice.setProperty('volume', 1.0)
             voices = self.voice.getProperty('voices')
             if len(voices) > 1:
-                self.voice.setProperty('voice', voices[1].id) # Usually a female/softer voice
+                self.voice.setProperty('voice', voices[1].id) 
         except:
             self.voice = None
             
+        # Initialize Speech Recognizer
+        try:
+            self.recognizer = sr.Recognizer()
+            self.microphone = sr.Microphone()
+        except:
+            self.recognizer = None
+            
     def speak(self, text):
-        """Makes NEXA speak the response."""
-        if self.voice:
+        """Makes NEXA speak the response in a non-blocking way."""
+        if self.voice and self.voice_enabled:
+            def _speak():
+                try:
+                    clean_text = re.sub(r'[^\x00-\x7F]+', '', text)
+                    self.voice.say(clean_text)
+                    self.voice.runAndWait()
+                except:
+                    pass
+            threading.Thread(target=_speak, daemon=True).start()
+
+    def listen(self):
+        """Listens for user voice input."""
+        if not self.recognizer:
+            return None
+            
+        with self.microphone as source:
+            print(f"{Fore.YELLOW}[LISTENING...] {Style.RESET_ALL}", end="", flush=True)
             try:
-                # Remove emojis for cleaner speech
-                clean_text = re.sub(r'[^\x00-\x7F]+', '', text)
-                self.voice.say(clean_text)
-                self.voice.runAndWait()
-            except:
-                pass
+                self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                audio = self.recognizer.listen(source, timeout=5, phrase_time_limit=10)
+                print(f"{Fore.GREEN}Analyzing...{Style.RESET_ALL}", end="\r")
+                text = self.recognizer.recognize_google(audio)
+                print(f"{Fore.GREEN}Captured: {text}{Style.RESET_ALL}")
+                return text
+            except sr.WaitTimeoutError:
+                print(f"{Fore.RED}Timeout.{Style.RESET_ALL}")
+                return None
+            except Exception as e:
+                print(f"{Fore.RED}Error: {str(e)}{Style.RESET_ALL}")
+                return None
         
     def show_logo(self):
+        # Neural Startup Animation
+        def _animate_3d():
+            frames = [
+                "    [  .  ]", "    [ ..  ]", "    [ ... ]", "    [  .. ]", "    [   . ]", "    [     ]"
+            ]
+            for _ in range(3):
+                for frame in frames:
+                    print(f"\r{Fore.CYAN}{Style.BRIGHT}    SYNCHRONIZING NEURAL LINK {frame}", end="", flush=True)
+                    time.sleep(0.1)
+            print("\r" + " " * 50 + "\r", end="")
+
+        _animate_3d()
+
         logo = fr"""
 {Fore.CYAN}{Style.BRIGHT}          _______  _______  _______  _______ 
 {Fore.CYAN}{Style.BRIGHT}         |    |  ||    ___||    _  ||   _   |
@@ -59,9 +106,13 @@ class NexaAI:
         """
         print(logo)
         print(avatar)
-        print(f"{Fore.WHITE}    [SYSTEM] {self.engine.name} {self.engine.version}")
-        print(f"{Fore.WHITE}    [ARCHITECT] {self.engine.creator}")
+        
+        # Matrix-like top header
+        print(f"{Fore.GREEN}{Style.DIM}" + "·" * 60)
+        print(f"{Fore.WHITE}    [SYSTEM] {self.engine.name} {self.engine.version} | {Fore.GREEN}NODE_ACTIVE")
+        print(f"{Fore.WHITE}    [ARCHITECT] {self.engine.creator} | {Fore.CYAN}ENCRYPTION_AES")
         print(f"{Fore.GREEN}    [STATUS] {self.engine.active_model} ONLINE | VAULT LINKED")
+        print(f"{Fore.GREEN}{Style.DIM}" + "·" * 60)
         print(f"{Fore.MAGENTA}    " + "─" * 50)
 
     def start_chat(self):
@@ -112,6 +163,9 @@ class NexaAI:
             time.sleep(0.005)
         print("\n")
         
+        # Speak the response
+        self.speak(response)
+        
         self.memory.add_chat_turn("user", user_input)
         self.memory.add_chat_turn("assistant", response)
 
@@ -121,13 +175,29 @@ class NexaAI:
             try:
                 # Modern Prompt Design
                 prompt = f"{Fore.MAGENTA}┌──({Fore.WHITE}{self.engine.user_name}{Fore.MAGENTA})─[{Fore.WHITE}nexa-os{Fore.MAGENTA}]\n{Fore.MAGENTA}└─{Fore.CYAN}▶ {Style.RESET_ALL}"
-                user_input = input(prompt).strip()
                 
+                if self.listen_enabled:
+                    user_input = self.listen()
+                    if not user_input:
+                        continue
+                else:
+                    user_input = input(prompt).strip()
+                
+                if not user_input:
+                    continue
+                    
                 if user_input.lower() in ["exit", "quit", "bye"]:
                     print(f"\n{Fore.CYAN}NEXA: {Fore.WHITE}Systems hibernating. Stay sharp, {self.engine.user_name}.\n")
                     break
                 
-                if not user_input:
+                # Special UI Controls
+                if user_input.lower() == "voice on":
+                    self.listen_enabled = True
+                    print(f"{Fore.GREEN}[VOICE MODE ACTIVATED]{Style.RESET_ALL}")
+                    continue
+                elif user_input.lower() == "voice off":
+                    self.listen_enabled = False
+                    print(f"{Fore.RED}[VOICE MODE DEACTIVATED]{Style.RESET_ALL}")
                     continue
                 
                 self.get_response(user_input)
@@ -139,16 +209,3 @@ class NexaAI:
 if __name__ == "__main__":
     nexa = NexaAI()
     nexa.run()
-                print()
-            print()
-            
-            # NEXA Speaks after typing is done (to avoid terminal stutter)
-            nexa.speak(response)
-
-        except KeyboardInterrupt:
-            print(f"\n\n{Fore.MAGENTA}NEXA: Emergency shutdown triggered. Bye!")
-            nexa.memory.mark_session_end()
-            break
-
-if __name__ == "__main__":
-    main()

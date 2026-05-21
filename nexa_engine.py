@@ -224,6 +224,10 @@ class NexaLogicEngine:
         text = text.lower().strip()
         words = text.split()
         
+        # Image Analysis Detection
+        if any(word in words for word in ["image", "photo", "picture", "scan", "analyze"]) and any(word in words for word in ["this", "image", "file", "path"]):
+            return "skill_image_analysis"
+        
         # Identity/Creator/Relationship check
         if any(phrase in text for phrase in ["who am i", "know who i am", "do you know me"]):
             return "identity_check"
@@ -303,6 +307,13 @@ class NexaLogicEngine:
         response_type = self.analyze_input(user_input)
         
         # Skill Command Handlers
+        if response_type == "skill_image_analysis":
+            # Attempt to find path in input
+            path_match = re.search(r'([a-zA-Z]:[\\/][^ \n]+|[^ \n]+\.(png|jpg|jpeg|webp))', user_input)
+            if path_match:
+                return self.skills.analyze_image(path_match.group(1))
+            return "I'm ready to analyze your image. Just provide the file path (e.g., 'analyze image photo.jpg')."
+
         if response_type == "skill_gold_price":
             return self.skills.search_gold_price()
         
