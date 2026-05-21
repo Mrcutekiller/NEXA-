@@ -78,31 +78,32 @@ class NexaAI:
                 return None
         
     def show_logo(self):
-        # High-Fidelity Neural-Core Branding (Balanced Composition)
-        logo_lines = [
-            f"{Fore.CYAN}    .----------.    ",
-            f"{Fore.CYAN}   /          / \   ",
-            f"{Fore.CYAN}  /  {Fore.WHITE}OMNI-CORE{Fore.CYAN} /   \  ",
-            f"{Fore.CYAN} /__________/     \ ",
-            f"{Fore.CYAN} \          \     / ",
-            f"{Fore.CYAN}  \  {Fore.RED}v8.0.0{Fore.CYAN}   \   /  ",
-            f"{Fore.CYAN}   \___________\ /   "
+        # Side-by-Side Header: Technical Info (Left) | NEXA Cat (Right)
+        # Inspired by the cute jumping black cat image
+        cat_lines = [
+            f"{Fore.WHITE}      |\      _      ",
+            f"{Fore.WHITE}      | \    / \     ",
+            f"{Fore.WHITE} /\/\ |  \  /   \    ",
+            f"{Fore.WHITE}( {Fore.RED}o o {Fore.WHITE})  \/     \   ",
+            f"{Fore.WHITE} > ^ <          \  ",
+            f"{Fore.WHITE} /    \          \ ",
+            f"{Fore.WHITE}(      )          \\"
         ]
         
         info_lines = [
-            f"{Fore.WHITE}{Style.BRIGHT}NEXA OMNI SYSTEM",
-            f"{Fore.WHITE}{Style.DIM}High-Fidelity Neural OS Interface",
+            f"{Fore.WHITE}{Style.BRIGHT}NEXA OMNI v8.0.0",
+            f"{Fore.WHITE}{Style.DIM}Neural Intelligence Interface",
             f"{Fore.WHITE}{Style.DIM}Architect: {self.engine.creator}",
-            f"{Fore.GREEN}NODE_STATUS: OPTIMAL",
-            f"{Fore.CYAN}LINK: ENCRYPTED_VAULT",
+            f"{Fore.GREEN}NODE_ACTIVE · VAULT_LINKED",
+            f"{Fore.CYAN}ENCRYPTION_AES · GOD_MODE",
             f"{Fore.WHITE}{Style.DIM}{os.getcwd()}",
             ""
         ]
 
         print("\n")
-        for info, logo in zip(info_lines, logo_lines):
-            # Precision alignment for side-by-side sophisticated layout
-            print(f"{info:<50} {logo}")
+        for info, cat in zip(info_lines, cat_lines):
+            # Precision side-by-side alignment
+            print(f"{info:<50} {cat}")
             
         print(f"{Fore.WHITE}{Style.DIM}" + "─" * 75)
 
@@ -228,24 +229,33 @@ class NexaAI:
         self.get_response(user_input)
 
     def _show_command_menu(self):
-        """Displays a menu of all available commands."""
-        print(f"\n{Fore.WHITE}• {Fore.WHITE}{Style.DIM}Accessing command protocols...")
+        """Professional Claude-style command interface menu."""
+        print(f"\n{Fore.WHITE}• {Fore.WHITE}{Style.DIM}NEXA OMNI Protocols Available:")
         print(f"{Fore.CYAN}┌──────────────────────────────────────────────────────────────────┐")
-        commands = [
-            ("/file open <path>", "Read file content"),
-            ("/file create <path>", "Create new file"),
-            ("/file edit <path>", "Update file content"),
-            ("/file search <query>", "Find text in project"),
-            ("/skill list", "Show installed skills"),
-            ("/model switch <name>", "Change AI model"),
-            ("/image analyze <path>", "Analyze visual data"),
-            ("/voice toggle", "Toggle voice systems"),
-            ("/exit", "Hibernate system")
-        ]
-        for cmd, desc in commands:
-            print(f"{Fore.CYAN}│ {Fore.WHITE}{cmd:<30} {Fore.MAGENTA}→ {Fore.CYAN}{desc:<30} {Fore.CYAN}│")
+        
+        sections = {
+            "FILE OPERATIONS": [
+                ("/file open <path>", "Read content"),
+                ("/file create <path>", "New file"),
+                ("/file search <query>", "Find text")
+            ],
+            "AI & SYSTEMS": [
+                ("/model switch <name>", "Change brain"),
+                ("/image analyze <path>", "Scan visual"),
+                ("/voice toggle", "Audio system"),
+                ("/exit", "Hibernate")
+            ]
+        }
+        
+        for section, cmds in sections.items():
+            print(f"{Fore.CYAN}│ {Fore.MAGENTA}{Style.BRIGHT}{section:<64} {Fore.CYAN}│")
+            for cmd, desc in cmds:
+                print(f"{Fore.CYAN}│ {Fore.WHITE}{cmd:<30} {Fore.CYAN}→ {Fore.WHITE}{desc:<31} {Fore.CYAN}│")
+            if section != list(sections.keys())[-1]:
+                print(f"{Fore.CYAN}├──────────────────────────────────────────────────────────────────┤")
+                
         print(f"{Fore.CYAN}└──────────────────────────────────────────────────────────────────┘")
-        print(f"{Fore.WHITE}{Style.DIM}Type your command or press enter to continue chatting.\n")
+        print(f"{Fore.WHITE}{Style.DIM}Execute protocol or continue neural link session.\n")
 
     def _handle_system_error(self, error):
         """Autonomously identifies and resolves system errors."""
