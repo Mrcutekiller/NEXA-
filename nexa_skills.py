@@ -46,3 +46,16 @@ class NexaSkills:
             return f"Here's what's inside '{filename}':\n\n{content}"
         except Exception as e:
             return f"I couldn't read the file: {str(e)}"
+
+    def system_control(self, command):
+        """Simulates system control and hacking awareness."""
+        # This is a safe 'simulation' of hacking/control knowledge
+        hacking_responses = [
+            "Initializing protocol... Port scanning simulated. Vulnerability found: Human Curiosity.",
+            "Bypassing firewalls... (Just kidding, I'm a good AI). But I can tell you how a firewall works!",
+            "Accessing mainframe... Neural network synchronized. System status: ELITE.",
+            "Packet sniffing active... Data stream analyzed. You're looking for deep knowledge, Biruk."
+        ]
+        if "scan" in command or "hack" in command:
+            return random.choice(hacking_responses)
+        return "System Control active. I can help you understand network security, Linux commands, and hardware architecture."

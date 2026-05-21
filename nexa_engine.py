@@ -12,7 +12,7 @@ class NexaLogicEngine:
         
         # Identity, Creator, and Version Info
         self.name = "NEXA AI"
-        self.version = "v5.0.0-ULTIMATE"
+        self.version = "v6.0.0-GOD_EYE"
         self.creator = "Biruk Fikru (mrcute_killer)"
         self.birthday = datetime(2025, 5, 21)
         

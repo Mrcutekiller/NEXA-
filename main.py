@@ -51,8 +51,8 @@ class NexaAI:
         print(logo)
         print(f"{Fore.CYAN}{Style.BRIGHT}    > {self.engine.name} - Version {self.engine.version}")
         print(f"{Fore.CYAN}    > Created by {self.engine.creator}")
-        print(f"{Fore.CYAN}    > Mode: {self.engine.base_personality.upper()} | Local Engine Active")
-        print(f"{Fore.WHITE}    ------------------------------------------")
+        print(f"{Fore.GREEN}    > Status: GOD_EYE LINK ESTABLISHED | ALL SYSTEMS NOMINAL")
+        print(f"{Fore.MAGENTA}    ---------------------------------------------------------")
 
     def start_chat(self):
         os.system('cls' if os.name == 'nt' else 'clear')
