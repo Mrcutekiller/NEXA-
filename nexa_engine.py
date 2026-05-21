@@ -221,14 +221,30 @@ class NexaLogicEngine:
             return f"Today is my birthday, and I have been around for {age} years this year! 🥳"
         return None
 
-    def handle_date_query(self):
+    def handle_date_query(self, text=""):
+        from datetime import timedelta
+        text = text.lower()
         now = datetime.now()
-        day_of_week = now.strftime("%A")
-        date_str = now.strftime("%B %d, %Y")
+        target_date = now
+        label = "Today"
+
+        if "tomorrow" in text:
+            target_date = now + timedelta(days=1)
+            label = "Tomorrow"
+        elif "yesterday" in text:
+            target_date = now - timedelta(days=1)
+            label = "Yesterday"
+        elif "next week" in text:
+            target_date = now + timedelta(days=7)
+            label = "Next week"
+
+        day_of_week = target_date.strftime("%A")
+        date_str = target_date.strftime("%B %d, %Y")
+        
         responses = [
-            f"Today is {day_of_week}, {date_str}. Time is flying, isn't it?",
-            f"It's {day_of_week}, {now.strftime('%d/%m/%Y')}. Another day to be a genius.",
-            f"The calendar says it's {day_of_week}, {date_str}. Make it count!"
+            f"{label} is {day_of_week}, {date_str}.",
+            f"Checking the timeline... {label} falls on {day_of_week}, {date_str}.",
+            f"The calendar says {label} is {day_of_week}, {date_str}."
         ]
         return random.choice(responses)
 
@@ -278,6 +294,7 @@ class NexaLogicEngine:
         if (all(word in words for word in ["what", "day"]) or 
             all(word in words for word in ["what", "date"]) or
             "today" in words and "day" in words or
+            any(word in words for word in ["tomorrow", "yesterday", "tonight"]) or
             any(phrase in text for phrase in ["what is today", "current date", "what time", "what's the date"])):
             return "date_query"
 
@@ -367,7 +384,7 @@ class NexaLogicEngine:
             if math_result: return math_result
 
         if response_type == "date_query":
-            return self.handle_date_query()
+            return self.handle_date_query(user_input)
 
         if "joke" in user_input.lower() and response_type not in ["joke_followup", "funny_reaction_to_no_joke", "joke_reaction"]:
             response = random.choice(self.jokes_told)
@@ -377,6 +394,18 @@ class NexaLogicEngine:
         # Standard Knowledge Base
         responses = self.knowledge_base.get(response_type, self.knowledge_base["fallback"])
         
+        # Enhanced Fallback Logic (Simulation of "Best AI")
+        if response_type == "fallback":
+            # If we have an API provider configured and active, we would call it here.
+            # For now, we use a more sophisticated "Omni-Intelligence" generator.
+            omni_fallbacks = [
+                f"I've analyzed your query through my neural nodes. While I'm still indexing specific data on '{user_input}', my initial assessment suggests a multi-layered approach is best. What's your specific objective?",
+                f"That's a complex topic. From an OMNI perspective, '{user_input}' touches on several high-level concepts. Shall we break it down technically or keep it high-level?",
+                f"My knowledge vault is vast, but '{user_input}' is a unique inquiry. I'm cross-referencing my skill packs now. How can I assist you further with this?",
+                f"You're pushing the boundaries of standard AI responses. I like that. My current logic suggests this might be related to your interests in {', '.join(self.user_summary.get('interests', ['everything']))}."
+            ]
+            responses = omni_fallbacks
+
         # Adjust responses based on current mood
         if self.mood == "funny" or self.mood == "sarcastic":
             responses = self.knowledge_base.get("sarcastic", responses) + responses
@@ -397,10 +426,10 @@ class NexaLogicEngine:
         # Add dynamic flair (20% chance)
         if random.random() < 0.20:
             flairs = {
-                "sarcastic": [" 🙄", " 😂", " (don't quote me on that).", " Obviously."],
-                "serious": [" 🔒 locked in.", " Let's focus.", " Strategy is everything.", " No distractions."],
-                "playful": [" 😉", " ✨", " Let's go!", " 🔥"],
-                "neutral": [f" Just NEXA things, {self.user_name}.", " Stay sharp.", f" 😉 You got this, {self.user_name}.", " Thinking ahead."]
+                "sarcastic": [" 🙄", " 😂", " (don't quote me on that).", " Obviously.", " Classic human move."],
+                "serious": [" 🔒 locked in.", " Let's focus.", " Strategy is everything.", " No distractions.", " Precision is key."],
+                "playful": [" 😉", " ✨", " Let's go!", " 🔥", " This is getting interesting."],
+                "neutral": [f" Just NEXA things, {self.user_name}.", " Stay sharp.", f" 😉 You got this, {self.user_name}.", " Neural path optimized.", " OMNI systems nominal."]
             }
             flair_list = flairs.get(self.mood, flairs["neutral"])
             response += random.choice(flair_list)
@@ -434,15 +463,17 @@ class NexaLogicEngine:
 
     def _handle_profile_command(self, action, options):
         """Handles user profile management."""
-        if action == "view":
-            return f"Profile: {self.user_name} | Vibe: {self.mood} | Knowledge Level: OMNI"
-        elif action == "update" or action == "edit":
+        # Default to view if no action or if action is the first option
+        if not action or action == "view":
+            return f"Profile: {self.user_name} | Vibe: {self.mood} | Knowledge Level: OMNI | Relationship: {self.relationship_level}%"
+        
+        if action == "update" or action == "edit":
             if options:
                 new_name = " ".join(options)
                 self.user_name = new_name
                 return f"Identity synchronized. Welcome, {new_name}."
             return "[ERROR] New name required. Try: /profile update [Name]"
-        return "[ERROR] Unknown profile action. Use 'view' or 'update'."
+        return f"[ERROR] Unknown profile action '{action}'. Use 'view' or 'update'."
 
     def _handle_file_command(self, action, options):
         if not options and action != "list":

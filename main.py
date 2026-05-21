@@ -114,8 +114,8 @@ class NexaAI:
                 return None
         
     def show_logo(self):
-        # Professional Minimalist Header (Claude-Style)
-        # Compact and high-density information layout
+        # High-Fidelity Professional Header (Text Left, Pixel Cat Right)
+        # Optimized for a clean, professional aesthetic during custom UI development
         cat_logo = [
             fr"{Fore.WHITE}   |\__/,|   (`\ ",
             fr"{Fore.WHITE} _ |◕  ◕|__  _) )",
@@ -126,7 +126,8 @@ class NexaAI:
         info_header = [
             f"{Fore.WHITE}{Style.BRIGHT}NEXA OMNI {Fore.WHITE}{self.engine.version}",
             f"{Fore.WHITE}{Style.DIM}Neural Architecture v8.0 · {self.engine.creator}",
-            f"{Fore.WHITE}{Style.DIM}{os.getcwd()}"
+            f"{Fore.WHITE}{Style.DIM}Status: {Fore.GREEN}NODE_ACTIVE {Fore.WHITE}· Mode: {Fore.CYAN}GOD_EYE",
+            f"{Fore.WHITE}{Style.DIM}Workspace: {os.getcwd()}"
         ]
 
         print("\n")
@@ -134,9 +135,9 @@ class NexaAI:
         for i in range(max(len(cat_logo), len(info_header))):
             info = info_header[i] if i < len(info_header) else ""
             logo = cat_logo[i] if i < len(cat_logo) else ""
-            print(f" {info:<55} {logo}")
+            print(f" {info:<60} {logo}")
             
-        print(f" {Fore.WHITE}{Style.DIM}" + "─" * 78)
+        print(f" {Fore.WHITE}{Style.DIM}" + "─" * 85)
 
     def _show_command_menu(self):
         """High-end interactive protocol selection menu."""
@@ -186,34 +187,42 @@ class NexaAI:
         
         # Professional "Thought/Action" feedback loop
         print(f"\n {Fore.WHITE}• {Fore.WHITE}{Style.DIM}Analyzing request...")
-        time.sleep(0.2)
+        time.sleep(0.15)
         
         # Handle Slash Commands
         if user_input.startswith("/"):
-            # Normalize /profile to /profile view if no action given
-            if user_input.strip() == "/profile":
-                user_input = "/profile view"
-                
-            nexa_cmd = user_input.replace("/", "nexa ", 1)
+            # Split to handle /command action options
+            cmd_parts = user_input.split()
+            base_cmd = cmd_parts[0]
+            action = cmd_parts[1] if len(cmd_parts) > 1 else "view"
+            options = " ".join(cmd_parts[2:]) if len(cmd_parts) > 2 else ""
+            
+            # Reconstruct for engine
+            nexa_cmd = f"nexa {base_cmd[1:]} {action} {options}".strip()
+            
             print(f" {Fore.GREEN}• {Fore.WHITE}Action: {Fore.CYAN}{user_input}")
             cli_response = self.engine.handle_cli_command(nexa_cmd)
             
             if cli_response:
-                print(f" {Fore.WHITE}  L {Fore.GREEN}Done {Fore.WHITE}{Style.DIM}(0.02s)")
+                print(f" {Fore.WHITE}  L {Fore.GREEN}Done {Fore.WHITE}{Style.DIM}(0.01s)")
                 print(f"\n {Fore.CYAN}NEXA {Fore.WHITE}› {Fore.WHITE}{cli_response}\n")
                 self.memory.add_chat_turn("user", user_input)
                 self.memory.add_chat_turn("assistant", cli_response)
                 return
         
         # Professional Thinking State
-        print(f" {Fore.RED}* {Fore.RED}Thinking... {Fore.WHITE}{Style.DIM}(esc to interrupt)")
-        time.sleep(0.5)
+        print(f" {Fore.RED}* {Fore.RED}Processing... {Fore.WHITE}{Style.DIM}(esc to interrupt)")
+        time.sleep(0.4)
         
         response = self.engine.generate_response(user_input)
         
-        # Clean, high-fidelity response layout
+        # Clean, high-fidelity response layout with smooth typing simulation
         print(f"\n {Fore.WHITE}• {Fore.CYAN}{Style.BRIGHT}Nexa Intelligence {Fore.WHITE}⬢")
-        print(f" {Fore.WHITE}{response}\n")
+        print(f" {Fore.WHITE}", end="", flush=True)
+        for char in response:
+            print(char, end="", flush=True)
+            time.sleep(0.003)
+        print("\n")
         
         self.speak(response)
         self.memory.add_chat_turn("user", user_input)
