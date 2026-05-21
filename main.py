@@ -78,21 +78,31 @@ class NexaAI:
                 return None
         
     def show_logo(self):
-        # Professional Claude-style Header
-        logo_pixel = fr"""
-{Fore.RED}      _---_
-{Fore.RED}     /     \
-{Fore.RED}    | () () |
-{Fore.RED}     \  ^  /
-{Fore.RED}      |||||
-{Fore.RED}      |||||
-        """
+        # Side-by-Side Professional Header (Text Left, Logo Right)
+        logo_lines = [
+            f"{Fore.RED}  _---_  ",
+            f"{Fore.RED} /     \ ",
+            f"{Fore.RED}| () () |",
+            f"{Fore.RED} \  ^  / ",
+            f"{Fore.RED}  |||||  ",
+            f"{Fore.RED}  |||||  "
+        ]
         
-        print(f"\n{logo_pixel}")
-        print(f"{Fore.WHITE}{Style.BRIGHT}Nexa Code {Fore.WHITE}{self.engine.version}")
-        print(f"{Fore.WHITE}{Style.DIM}Omni 8.0 (GOD_MODE) · {self.engine.creator}")
-        print(f"{Fore.WHITE}{Style.DIM}{os.getcwd()}")
-        print(f"{Fore.WHITE}─" * 60)
+        info_lines = [
+            f"{Fore.WHITE}{Style.BRIGHT}Nexa OMNI {Fore.WHITE}{self.engine.version}",
+            f"{Fore.WHITE}{Style.DIM}Omni 8.0 (GOD_MODE) · {self.engine.creator}",
+            f"{Fore.WHITE}{Style.DIM}{os.getcwd()}",
+            f"{Fore.GREEN}NODE_ACTIVE · ENCRYPTION_AES",
+            "",
+            ""
+        ]
+
+        print("\n")
+        for info, logo in zip(info_lines, logo_lines):
+            # Adjust padding for side-by-side alignment
+            print(f"{info:<50} {logo}")
+            
+        print(f"{Fore.WHITE}─" * 70)
 
     def start_chat(self):
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -217,25 +227,23 @@ class NexaAI:
 
     def _show_command_menu(self):
         """Displays a menu of all available commands."""
-        print(f"\n{Fore.CYAN}┌─── NEXA OMNI COMMAND INTERFACE ───┐")
+        print(f"\n{Fore.WHITE}• {Fore.WHITE}{Style.DIM}Accessing command protocols...")
+        print(f"{Fore.CYAN}┌──────────────────────────────────────────────────────────────────┐")
         commands = [
-            ("nexa file open <path>", "Read file content"),
-            ("nexa file create <path> <text>", "Create new file"),
-            ("nexa file edit <path> <text>", "Update file content"),
-            ("nexa file delete <path>", "Remove a file"),
-            ("nexa file search <query>", "Find text in project"),
-            ("nexa skill list", "Show installed skills"),
-            ("nexa skill install <source>", "Install new skill"),
-            ("nexa api add <name> <key>", "Securely add API key"),
-            ("nexa model switch <name>", "Change AI model"),
-            ("analyze image <path>", "Analyze visual data"),
-            ("voice on / voice off", "Toggle voice systems"),
-            ("exit / quit", "Hibernate system")
+            ("/file open <path>", "Read file content"),
+            ("/file create <path>", "Create new file"),
+            ("/file edit <path>", "Update file content"),
+            ("/file search <query>", "Find text in project"),
+            ("/skill list", "Show installed skills"),
+            ("/model switch <name>", "Change AI model"),
+            ("/image analyze <path>", "Analyze visual data"),
+            ("/voice toggle", "Toggle voice systems"),
+            ("/exit", "Hibernate system")
         ]
         for cmd, desc in commands:
-            print(f"{Fore.CYAN}│ {Fore.WHITE}{cmd:<30} {Fore.MAGENTA}→ {Fore.CYAN}{desc}")
-        print(f"{Fore.CYAN}└───────────────────────────────────┘\n")
-        print(f"{Fore.WHITE}Type a command or continue chatting.\n")
+            print(f"{Fore.CYAN}│ {Fore.WHITE}{cmd:<30} {Fore.MAGENTA}→ {Fore.CYAN}{desc:<30} {Fore.CYAN}│")
+        print(f"{Fore.CYAN}└──────────────────────────────────────────────────────────────────┘")
+        print(f"{Fore.WHITE}{Style.DIM}Type your command or press enter to continue chatting.\n")
 
     def _handle_system_error(self, error):
         """Autonomously identifies and resolves system errors."""
