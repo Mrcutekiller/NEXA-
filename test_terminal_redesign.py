@@ -787,7 +787,7 @@ class TestNewV4Upgrades(unittest.TestCase):
                 
                 self.assertIn("automatically launched a web search", response)
                 mock_open.assert_called_once()
-                self.assertIn("chemical composition of stars", mock_open.call_args[0][0])
+                self.assertIn("chemical%20composition%20of%20stars", mock_open.call_args[0][0])
         finally:
             if os.path.exists(db_path):
                 os.remove(db_path)
@@ -836,6 +836,53 @@ class TestNewV4Upgrades(unittest.TestCase):
                 response = engine.generate_response("explain quantum computing fallback query")
                 self.assertIn("I couldn't get a response from OPENAI", response)
                 mock_open.assert_called_once()
+        finally:
+            if os.path.exists(db_path):
+                os.remove(db_path)
+
+    def test_search_augmented_query_cleaning(self):
+        from nexa_engine import NexaLogicEngine
+        from nexa_storage import NexaStorage
+        import tempfile
+        import os
+        from unittest.mock import patch
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_db:
+            db_path = tmp_db.name
+
+        try:
+            storage = NexaStorage(db_path=db_path)
+            engine = NexaLogicEngine(storage=storage)
+
+            # Test _clean_web_text function directly
+            dirty_text = "Check out https://google.com/foo/bar. / Here is python.org ... and some other info [1] [+2]"
+            clean = engine._clean_web_text(dirty_text)
+            self.assertNotIn("https://google.com", clean)
+            self.assertNotIn("python.org", clean)
+            self.assertNotIn("[1]", clean)
+            self.assertNotIn("[+2]", clean)
+            self.assertNotIn(". /", clean)
+            self.assertNotIn("...", clean)
+            self.assertIn("Check out", clean)
+            self.assertIn("Here is", clean)
+            self.assertIn("and some other info", clean)
+
+            # Test fallback snippets presentation has no URL:
+            mock_snippets = [{
+                "title": "Clean Title",
+                "snippet": "Test snippet info at https://test.com/path. /",
+                "url": "https://test.com/path"
+            }]
+            with patch.object(engine.skills, "search_web_programmatic", return_value=mock_snippets), \
+                 patch.object(engine.skills, "web_search"), \
+                 patch.object(engine.generator, "generate", return_value=None):
+                
+                response = engine._handle_search_augmented_query("test query", "LOCAL")
+                self.assertNotIn("https://test.com", response)
+                self.assertNotIn("URL:", response)
+                self.assertNotIn("Summary:", response)
+                self.assertNotIn(". /", response)
+                self.assertIn("Test snippet info at", response)
         finally:
             if os.path.exists(db_path):
                 os.remove(db_path)

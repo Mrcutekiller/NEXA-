@@ -1091,6 +1091,29 @@ class NexaLogicEngine:
             
         return None
 
+    def _clean_web_text(self, text: str) -> str:
+        if not text:
+            return ""
+        # Remove absolute URL paths starting with http/https
+        text = re.sub(r'https?://\S+', '', text)
+        # Remove domain-like structures ending with common TLDs (e.g. example.com, example.org)
+        text = re.sub(r'\b[a-zA-Z0-9.-]+\.(?:com|org|net|edu|gov|mil|info|io|co|us|uk|ca|fr|de|jp)\b/?\S*', '', text)
+        # Remove bracket citations like [1], [2], [+3], [+1], etc.
+        text = re.sub(r'\[\+?\d+\]', '', text)
+        # Replace dot-slash patterns like ". /", "./", "../", "/.", "/ /", "\ \"
+        text = text.replace("../", "")
+        text = text.replace("./", "")
+        text = re.sub(r'\.\s*/', '', text)
+        text = re.sub(r'/\s*\.', '', text)
+        text = re.sub(r'\s*/\s*', ' ', text)
+        # Remove trailing slashes or backslashes
+        text = re.sub(r'\\+', '', text)
+        # Remove multiple dots (ellipses)
+        text = re.sub(r'\.{2,}', '', text)
+        # Remove extra whitespaces
+        text = " ".join(text.split())
+        return text.strip()
+
     def _handle_search_augmented_query(self, user_input: str, active_provider: str) -> str:
         # 1. Open browser search
         search_msg = self.skills.web_search(user_input)
@@ -1110,23 +1133,51 @@ class NexaLogicEngine:
                     f"Here is some web search context related to the user's query: \"{user_input}\"\n\n"
                     f"Search Results:\n{snippets_text}\n"
                     f"Please answer the user's question \"{user_input}\" based on the search results. "
-                    f"Keep your response concise, elegant, clear, and professional."
+                    f"Keep your response concise, elegant, clear, and professional. "
+                    f"Synthesize the main point directly. DO NOT include any raw links, URLs, domain names, "
+                    f"brackets like [1], or punctuation junk like '. /'. Answer like a helpful human assistant."
                 )
                 resp = self._query_external_api(active_provider, prompt)
                 if resp:
-                    return f"NEXA › [SOURCE: LIVE SEARCH & {active_provider}] I've opened Google Search in your browser.\n\n{resp}"
+                    return f"NEXA › [SOURCE: LIVE SEARCH & {active_provider}] I've opened Google Search in the background.\n\n{resp}"
             
             # Fallback presentation when external API fails or is LOCAL
+            # Try to use local generator first to synthesize a clean text summary
+            gen_model = self._get_generation_model_key(user_input)
+            local_prompt = (
+                f"Answer the query: '{user_input}' "
+                f"by summarizing the following search results in a clean, human-like paragraph. "
+                f"Do not include links, URLs, citation tags, or punctuation junk:\n\n"
+            )
+            for s in snippets[:3]:
+                cleaned_snippet = self._clean_web_text(s['snippet'])
+                if cleaned_snippet:
+                    local_prompt += f"- {cleaned_snippet}\n"
+            
+            gen_resp = self.generator.generate(local_prompt, gen_model)
+            if gen_resp:
+                gen_resp = self._clean_web_text(gen_resp)
+                if active_provider != "LOCAL":
+                    return f"I couldn't get a response from {active_provider}. However, I've automatically launched a web search in the background and synthesized these main points:\n\n{gen_resp}"
+                return f"NEXA › [SOURCE: LIVE SEARCH] I've automatically launched a web search in the background. Here is what I retrieved:\n\n{gen_resp}"
+            
+            # If local generator is not available, format the cleaned snippets cleanly
             body = ""
-            for i, s in enumerate(snippets[:4], 1):
-                body += f"● {s['title']}\n  URL: {s['url']}\n  Summary: {s['snippet']}\n\n"
+            seen_sentences = set()
+            for s in snippets[:4]:
+                snippet_text = self._clean_web_text(s['snippet'])
+                if not snippet_text or len(snippet_text) <= 10:
+                    continue
+                if snippet_text.lower() not in seen_sentences:
+                    seen_sentences.add(snippet_text.lower())
+                    body += f"• {snippet_text}\n\n"
             
             if active_provider != "LOCAL":
-                header = f"I couldn't get a response from {active_provider}. However, I've automatically launched a web search for you and programmatically retrieved these results:\n\n"
+                header = f"I couldn't get a response from {active_provider}. However, I've automatically launched a web search in the background and retrieved these main points:\n\n"
             else:
-                header = "NEXA › [SOURCE: LIVE SEARCH] I've opened Google Search in your browser. Here is what I retrieved from the web:\n\n"
+                header = "NEXA › [SOURCE: LIVE SEARCH] I've automatically launched a web search in the background. Here is what I retrieved:\n\n"
                 
-            tip = "(Tip: Add your ChatGPT or Gemini key using `/api add openai <key>` or `/api add gemini <key>` and `/api switch <provider>` to get automated summaries!)"
+            tip = "(Tip: Add your ChatGPT key using `/api add openai <key>` and `/api switch openai` to get automated summaries!)"
             return f"{header}{body}{tip}"
             
         else:
@@ -1135,14 +1186,14 @@ class NexaLogicEngine:
                 resp = self._query_external_api(active_provider, user_input)
                 if resp:
                     return f"NEXA › [SOURCE: {active_provider}] (No web snippets found)\n\n{resp}"
-                return f"I couldn't get a response from {active_provider}. I've automatically launched a web search for you: {search_msg}"
+                return f"I couldn't get a response from {active_provider}. I've automatically launched a web search for you in the background: {search_msg}"
             
             gen_model = self._get_generation_model_key(user_input)
             gen_resp = self.generator.generate(user_input, gen_model)
             if gen_resp:
                 return gen_resp
                 
-            return f"I don't have that knowledge locally. I've automatically launched a web search to find this for you: {search_msg}"
+            return f"I don't have that knowledge locally. I've automatically launched a web search to find this for you in the background: {search_msg}"
 
 
     def _handle_model_command(self, action, options):
