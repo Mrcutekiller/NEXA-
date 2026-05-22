@@ -72,6 +72,7 @@ _stub("prompt_toolkit.completion").Completion = (
 )
 _stub("prompt_toolkit.styles").Style = MagicMock()
 _stub("prompt_toolkit.formatted_text").HTML = lambda x: x
+_stub("prompt_toolkit.formatted_text").to_formatted_text = lambda x, *a, **kw: x
 _stub("prompt_toolkit.lexers").PygmentsLexer = MagicMock
 _stub("prompt_toolkit.auto_suggest").AutoSuggestFromHistory = MagicMock
 _stub("prompt_toolkit.history").FileHistory = MagicMock

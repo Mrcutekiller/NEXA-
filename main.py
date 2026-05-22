@@ -1523,4 +1523,20 @@ class NexaAI:
 
 
 if __name__ == "__main__":
-    NexaAI().run()
+    if "--classic" in sys.argv:
+        NexaAI().run()
+    elif "--selftest" in sys.argv:
+        from app.ui.animations.boot import play_terminal_boot
+        from app.ui.animations.model_switch import play_terminal_model_switch
+        play_terminal_boot()
+        print("\n[SYSTEM] Triggering test model switch transition...")
+        play_terminal_model_switch("ultra", "code", "\033[38;5;33m")
+        print("[SYSTEM] Self-test complete.")
+    else:
+        try:
+            from app.ui.chat_ui import NexaApp
+            NexaApp().run()
+        except ImportError as e:
+            print(f"Error starting Textual interface: {e}")
+            print("Falling back to classic interface...")
+            NexaAI().run()

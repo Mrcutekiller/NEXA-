@@ -4,12 +4,9 @@ requests
 python-dotenv
 colorama
 SpeechRecognition
-PyAudio
 Pillow
 openai
 prompt_toolkit
-webbrowser
-subprocess
 psutil
 selenium
 webdriver-manager
@@ -18,3 +15,4 @@ uvicorn
 jinja2
 python-multipart
 aiofiles
+textual

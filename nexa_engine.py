@@ -2,10 +2,16 @@ import random
 import re
 from datetime import datetime
 from nexa_skills import NexaSkills
+from app.features.knowledge import NexaKnowledgeBase
+from app.features.rag import NexaRAG
+from app.features.monitor import NexaMonitor
 
 class NexaLogicEngine:
     def __init__(self, user_summary=None, storage=None):
         self.storage = storage
+        self.kb = NexaKnowledgeBase()
+        self.rag = NexaRAG()
+        self.monitor = NexaMonitor()
         self.mood = "neutral"
         self.relationship_level = 0 # 0 to 100
         self.last_response_type = None
@@ -358,10 +364,111 @@ class NexaLogicEngine:
             
         return "fallback"
 
+    def try_evaluate_basic_arithmetic(self, text: str) -> Optional[str]:
+        # Remove words like "what is", "calculate", "?", etc.
+        clean = re.sub(r'(?i)what is|calculate|\?', '', text).strip()
+        # Clean x or X to * for multiplication
+        clean = clean.replace('x', '*').replace('X', '*')
+        clean_eval = clean.replace('^', '**')
+        # Check if the clean string is a valid math expression with numbers and +-*/%^()
+        if re.match(r'^[0-9\+\-\*\/\(\)\.\%\s\*\*]+$', clean_eval):
+            try:
+                # Ensure it actually has numbers and operators to avoid matching plain numbers
+                if re.search(r'\d', clean_eval) and any(op in clean_eval for op in '+-*/%'):
+                    result = eval(clean_eval, {"__builtins__": None}, {})
+                    if isinstance(result, float) and result.is_integer():
+                        result = int(result)
+                    return f"{result}."
+            except Exception:
+                pass
+        return None
+
+    def get_zero_knowledge_fallback(self, user_input: str) -> str:
+        user_input_lower = user_input.lower().strip("?.! ")
+        
+        # Check if it's a coding/programming request
+        coding_keywords = ["python", "javascript", "js", "html", "css", "java", "c++", "rust", "sql", "code", "programming", "function", "class", "react", "next.js", "node.js"]
+        for kw in coding_keywords:
+            if kw in user_input_lower:
+                lang = kw.title() if kw not in ["js", "html", "css", "sql"] else kw.upper()
+                return (
+                    f"I don't know how to write {lang} yet.\n"
+                    f"I only know what you have taught me so far.\n"
+                    f"If you teach me {lang}, I will be able to help."
+                )
+        
+        # Extract subject from "what is/are", "who is/are/was/were", "explain", "how does/do"
+        patterns = [
+            r"what is\s+(.+)",
+            r"what are\s+(.+)",
+            r"who is\s+(.+)",
+            r"who was\s+(.+)",
+            r"explain\s+(.+)",
+            r"how does\s+(.+)",
+            r"how do\s+(.+)",
+            r"do you know\s+(.+)"
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, user_input_lower)
+            if match:
+                subject = match.group(1).strip()
+                subject = re.sub(r'[?\.\!]+$', '', subject).strip()
+                return (
+                    f"I don't know what {subject} is yet.\n"
+                    f"You can teach me with:\n"
+                    f"/learn {subject} is [your explanation]\n"
+                    f"or\n"
+                    f"/learn [filename] to load a document about it."
+                )
+                
+        # General default fallback if we don't know the exact subject
+        return (
+            "I don't have that knowledge yet.\n"
+            "Teach me with: /learn [topic] is [explanation]"
+        )
+
+    def check_zero_knowledge(self, user_input: str) -> Optional[str]:
+        # 1. Try basic arithmetic first
+        math_val = self.try_evaluate_basic_arithmetic(user_input)
+        if math_val is not None:
+            return math_val
+
+        # 2. Search facts in knowledge base
+        matched_facts = self.kb.search_facts(user_input)
+        if matched_facts:
+            # Combine facts
+            fact_contents = " ".join([f["content"] for f in matched_facts])
+            if not fact_contents.endswith('.'):
+                fact_contents += "."
+            return f"{fact_contents} You taught me this."
+
+        # 3. Check if conversational or tool/skill call
+        response_type = self.analyze_input(user_input)
+        
+        # Allowed responses: basic conversation & system/action commands
+        allowed_types = {
+            "identity", "creator", "birthday_info", "greetings", "identity_check",
+            "joke_reaction", "acknowledgments", "short_queries", "boring_reaction",
+            "joke_followup", "funny_reaction_to_no_joke", "serious", "sarcastic",
+            "playful", "angry", "flirty", "date_query"
+        }
+        
+        if response_type in allowed_types or response_type.startswith("skill_"):
+            return None
+
+        # 4. Return zero-knowledge fallback
+        return self.get_zero_knowledge_fallback(user_input)
+
     def generate_response(self, user_input):
         # Update Mood based on user input tone
         self._update_mood_from_input(user_input)
         
+        # Zero-knowledge check first!
+        zk_response = self.check_zero_knowledge(user_input)
+        if zk_response is not None:
+            return zk_response
+            
         response_type = self.analyze_input(user_input)
         
         # Skill Command Handlers
