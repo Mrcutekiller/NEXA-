@@ -104,6 +104,24 @@ class NexaModelManager:
             xp_events={"complex_solve": 40, "audit_completed": 35, "strategy_generated": 50}
         )
 
+        # 👁️ MODEL 5: NEXA GOD EYE
+        self.models["god_eye"] = ModelConfig(
+            name="NEXA GOD EYE",
+            key="god_eye",
+            icon="👁️",
+            color="#10B981",
+            personality="omnipresent routing master coordinating specialist sub-agents",
+            system_prompt=(
+                "You are NEXA GOD EYE, the master intelligence coordinator. You route tasks to specialized modules "
+                "natively and monitor execution states to resolve complex developer queries."
+            ),
+            temperature=0.5,
+            max_tokens=4096,
+            slash_commands=["/model", "/profile", "/skill", "/help"],
+            voice_profile={"rate": 150, "volume": 1.0, "pitch": "balanced"},
+            xp_events={"complex_solve": 10, "strategy_generated": 10}
+        )
+
     def subscribe_model_switch(self, callback: Callable[[str, ModelConfig], None]):
         self._listeners.append(callback)
 

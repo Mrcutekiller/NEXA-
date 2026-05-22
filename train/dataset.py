@@ -6,7 +6,7 @@ Supports loading text datasets and tokenizing text buffers.
 
 import os
 import re
-from typing import List, Tuple
+from typing import List, Tuple, Any
 
 # Try importing torch/transformers, fallback gracefully if absent
 TORCH_AVAILABLE = False

@@ -6,8 +6,8 @@ Provides responsive layouts, sidebar positioning, chat bubble alignment, and col
 
 NEXA_CSS = """
 Screen {
-    background: #0b0f19;
-    color: #e2e8f0;
+    background: #1c1917;
+    color: #f5f5f4;
     layout: grid;
     grid-size: 2 3;
     grid-columns: 32 1fr;
@@ -16,9 +16,9 @@ Screen {
 
 .title-bar {
     grid-column: 1 / 3;
-    background: #0f172a;
-    color: #e2e8f0;
-    border-bottom: hsolid #00AAFF;
+    background: #292524;
+    color: #f5f5f4;
+    border-bottom: hsolid #d97706;
     height: 3;
     content-align: center middle;
     text-style: bold;
@@ -26,15 +26,15 @@ Screen {
 
 .sidebar {
     grid-row: 2 / 3;
-    background: #0f172a;
-    border-right: vsolid #1e293b;
+    background: #292524;
+    border-right: vsolid #44403c;
     padding: 1 2;
 }
 
 #chat-area {
     grid-row: 2 / 3;
     grid-column: 2 / 3;
-    background: #090d16;
+    background: #1c1917;
     layout: horizontal;
     padding: 0;
 }
@@ -47,9 +47,9 @@ Screen {
 }
 
 .chat-bubble-user {
-    background: #1e293b;
-    color: #f8fafc;
-    border-left: solid #38bdf8 3;
+    background: #44403c;
+    color: #f5f5f4;
+    border-left: solid #f59e0b 3;
     margin: 1 2;
     padding: 1 2;
     align: right;
@@ -57,9 +57,9 @@ Screen {
 }
 
 .chat-bubble-bot {
-    background: #0f172a;
-    color: #e2e8f0;
-    border-left: solid #00AAFF 3;
+    background: #292524;
+    color: #f5f5f4;
+    border-left: solid #d97706 3;
     margin: 1 2;
     padding: 1 2;
     align: left;
@@ -68,20 +68,20 @@ Screen {
 
 #bubble-header {
     text-style: bold;
-    color: #6ee7f9;
+    color: #f59e0b;
     margin-bottom: 1;
 }
 
 #bubble-body {
-    color: #e2e8f0;
+    color: #f5f5f4;
 }
 
 #input-container {
     grid-column: 1 / 3;
     grid-row: 3 / 4;
     layout: horizontal;
-    background: #0f172a;
-    border-top: hsolid #1e293b;
+    background: #292524;
+    border-top: hsolid #44403c;
     height: 3;
     padding: 0 1;
 }
@@ -89,7 +89,7 @@ Screen {
 #input-container Input {
     width: 75%;
     border: none;
-    background: #1e293b;
+    background: #44403c;
 }
 
 #input-container Button {
@@ -101,47 +101,47 @@ Screen {
 .status-bar {
     grid-column: 1 / 3;
     height: 1;
-    background: #0f172a;
-    color: #94a3b8;
+    background: #292524;
+    color: #a8a29e;
     content-align: left middle;
     padding-left: 2;
 }
 
 #xp-bar-container {
     padding: 1 0;
-    border-bottom: hsolid #1e293b;
+    border-bottom: hsolid #44403c;
 }
 
 #xp-bar-container ProgressBar {
     width: 100%;
     height: 1;
-    color: #EAB308;
+    color: #d97706;
 }
 
 .suggest-bar {
     layout: horizontal;
     height: 3;
-    background: #090d16;
+    background: #1c1917;
     padding: 0 2;
     align-vertical: center;
 }
 
 .suggest-button {
     margin-right: 2;
-    background: #1e293b;
-    color: #cbd5e1;
+    background: #292524;
+    color: #d6d3d1;
     border: none;
     height: 1;
 }
 
 .suggest-button:hover {
-    background: #334155;
-    color: #f8fafc;
+    background: #44403c;
+    color: #f5f5f4;
 }
 
 #palette-container {
-    background: #0f172a;
-    border: double #00AAFF;
+    background: #292524;
+    border: double #d97706;
     padding: 1 2;
     width: 60;
     height: 25;
@@ -150,14 +150,14 @@ Screen {
 
 #palette-title {
     text-style: bold;
-    color: #00AAFF;
+    color: #d97706;
     margin-bottom: 1;
     content-align: center middle;
 }
 
 #palette-help {
     margin-top: 1;
-    color: #94a3b8;
+    color: #a8a29e;
     content-align: center middle;
 }
 """

@@ -100,11 +100,29 @@ THEMES: Dict[str, Dict[str, str]] = {
         "_bg_active":    "\033[43m",        # yellow bg
         "_reset":        "\033[0m",
     },
+    "claude": {
+        "prompt":                               "#d97706 bold",
+        "bottom-toolbar":                       "bg:#1c1917 #f5f5f4",
+        "rprompt":                              "#a8a29e",
+        "completion-menu":                      "bg:#292524 #f5f5f4",
+        "completion-menu.completion.current":   "bg:#d97706 #1c1917",
+        "scrollbar.background":                 "bg:#292524",
+        "scrollbar.button":                     "bg:#d97706",
+        "_fg_primary":   "\033[38;5;230m",  # Warm cream / ivory
+        "_fg_dim":       "\033[38;5;244m",  # Stone grey
+        "_fg_accent":    "\033[38;5;215m",  # Warm peach
+        "_fg_success":   "\033[38;5;150m",  # Sage green
+        "_fg_warn":      "\033[38;5;216m",  # Amber/coral
+        "_fg_error":     "\033[38;5;203m",  # Terracotta / soft red
+        "_fg_system":    "\033[38;5;179m",  # Warm bronze / gold
+        "_bg_active":    "\033[48;5;236m",  # Warm dark gray highlight
+        "_reset":        "\033[0m",
+    },
 }
 
 
 def _theme_code(theme: str, key: str) -> str:
-    return THEMES.get(theme, THEMES["dark"]).get(key, "")
+    return THEMES.get(theme, THEMES["claude"]).get(key, "")
 
 
 # ─── Data model ─────────────────────────────────────────────────────────────
@@ -142,7 +160,7 @@ class TerminalWorkspace:
     def __init__(self, state_path: str = "nexa_terminal_state.json"):
         self.state_path = state_path
         self.sidebar_collapsed = False
-        self.theme = "dark"
+        self.theme = "claude"
         self.autocomplete_delay_ms = 120
         self.bookmarks: List[str] = [
             "/model view",
@@ -166,7 +184,9 @@ class TerminalWorkspace:
                 with open(self.state_path, "r", encoding="utf-8") as handle:
                     payload = json.load(handle)
                 self.sidebar_collapsed = payload.get("sidebar_collapsed", False)
-                self.theme = payload.get("theme", "dark")
+                self.theme = payload.get("theme", "claude")
+                if self.theme == "dark":
+                    self.theme = "claude"
                 self.autocomplete_delay_ms = int(payload.get("autocomplete_delay_ms", 120))
                 self.bookmarks = payload.get("bookmarks", self.bookmarks)
                 self.command_history = payload.get("command_history", [])
@@ -217,7 +237,7 @@ class TerminalWorkspace:
     # ── Bootstrap / reconcile ────────────────────────────────────────────────
 
     def _bootstrap_workspace(self) -> None:
-        pane = TerminalPane(pane_id=self._new_id("pane"), label="Primary")
+        pane = TerminalPane(pane_id=self._new_id("pane"), label="Chat")
         tab = TerminalTab(
             tab_id=self._new_id("tab"),
             label="Home",
@@ -277,7 +297,7 @@ class TerminalWorkspace:
     # ── Tab operations ───────────────────────────────────────────────────────
 
     def create_tab(self, label: Optional[str] = None) -> TerminalTab:
-        pane = TerminalPane(pane_id=self._new_id("pane"), label="Primary")
+        pane = TerminalPane(pane_id=self._new_id("pane"), label="Chat")
         tab = TerminalTab(
             tab_id=self._new_id("tab"),
             label=label or f"Tab {len(self.tabs) + 1}",
@@ -507,7 +527,7 @@ class NexaCommandCompleter(Completer):
         "/forge":    "Create or optimize autonomous capabilities",
         "/auth":     "Review session state or logout",
         "/file":     "Open, create, edit, or search files",
-        "/theme":    "Switch dark / light / high-contrast theme",
+        "/theme":    "Switch dark / light / high-contrast / claude theme",
         "/sidebar":  "Collapse or expand the metrics rail",
         "/tab":      "Create, move, swap, pin, and close workspace tabs",
         "/pane":     "Split, focus, resize, relabel, and close panes",
@@ -648,6 +668,7 @@ class NexaAI:
         self.engine = NexaLogicEngine(
             user_summary=self.memory.get_context_summary(),
             storage=self.storage,
+            memory_manager=self.memory,
         )
         self.workspace = TerminalWorkspace()
         self.voice_enabled = True
@@ -679,7 +700,7 @@ class NexaAI:
         self.session = self._build_session()
 
     def _build_style(self) -> ToolkitStyle:
-        theme = THEMES.get(self.workspace.theme, THEMES["dark"])
+        theme = THEMES.get(self.workspace.theme, THEMES["claude"])
         # Only pass prompt_toolkit-compatible keys (not our _fg_* private keys)
         tk_keys = {k: v for k, v in theme.items() if not k.startswith("_")}
         return ToolkitStyle.from_dict(tk_keys)
@@ -1106,15 +1127,15 @@ class NexaAI:
 
         if command == "/theme":
             mode = parts[1].lower() if len(parts) > 1 else "toggle"
-            valid = {"dark", "light", "high-contrast"}
+            valid = {"dark", "light", "high-contrast", "claude"}
             if mode == "toggle":
-                options = list(valid)
+                options = ["dark", "light", "high-contrast", "claude"]
                 current_idx = options.index(self.workspace.theme) if self.workspace.theme in options else 0
                 self.workspace.theme = options[(current_idx + 1) % len(options)]
             elif mode in valid:
                 self.workspace.theme = mode
             else:
-                return self._system_message("Use /theme dark, /theme light, /theme high-contrast, or /theme toggle.")
+                return self._system_message("Use /theme dark, /theme light, /theme high-contrast, /theme claude, or /theme toggle.")
             self.workspace.save()
             self.refresh_session()
             return self._system_message(f"Theme switched to {self.workspace.theme}.")

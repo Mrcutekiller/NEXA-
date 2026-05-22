@@ -605,5 +605,111 @@ class TestExportPane(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# 15. New V4 Upgrades Verification
+# ---------------------------------------------------------------------------
+
+class TestNewV4Upgrades(unittest.TestCase):
+    def setUp(self):
+        import sys
+        self.stubbed_modules = {}
+        for m in ["nexa_engine", "memory_manager", "nexa_storage", "nexa_skills"]:
+            if m in sys.modules:
+                self.stubbed_modules[m] = sys.modules[m]
+                del sys.modules[m]
+
+    def tearDown(self):
+        import sys
+        for m, mod in self.stubbed_modules.items():
+            sys.modules[m] = mod
+
+    def test_model_switching_robust_parsing(self):
+        from app.model_manager import NexaModelManager
+        from app.commands import CommandRouter
+        from nexa_storage import NexaStorage
+        from memory_manager import MemoryManager
+        import tempfile
+        import os
+        
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_db:
+            db_path = tmp_db.name
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp_mem:
+            mem_path = tmp_mem.name
+            
+        try:
+            mm = NexaModelManager()
+            storage = NexaStorage(db_path=db_path)
+            memory = MemoryManager(storage_path=mem_path)
+            router = CommandRouter(model_manager=mm, storage=storage, memory_manager=memory)
+            
+            res = router.route("/model")
+            self.assertIn("Registered Models:", res.text)
+            self.assertIn("➔ ●", res.text) # active highlighter
+            
+            # Test switch parsing variations
+            res = router.route("/model switch god eye")
+            self.assertEqual(mm.active_model_key, "god_eye")
+            
+            res = router.route("/model code")
+            self.assertEqual(mm.active_model_key, "code")
+        finally:
+            if os.path.exists(db_path):
+                os.remove(db_path)
+            if os.path.exists(mem_path):
+                os.remove(mem_path)
+
+    def test_auto_learn_age_declarations(self):
+        from nexa_engine import NexaLogicEngine
+        from memory_manager import MemoryManager
+        import tempfile
+        import os
+        
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp_mem:
+            mem_path = tmp_mem.name
+            
+        try:
+            memory = MemoryManager(storage_path=mem_path)
+            engine = NexaLogicEngine(memory_manager=memory)
+            
+            # Test "I am 25" matching
+            engine._auto_learn_from_user("I am 25")
+            traits = memory.memory.get("user_traits", {})
+            self.assertEqual(traits.get("age"), 25)
+            
+            # Test "I'm 30" matching
+            engine._auto_learn_from_user("I'm 30")
+            traits = memory.memory.get("user_traits", {})
+            self.assertEqual(traits.get("age"), 30)
+        finally:
+            if os.path.exists(mem_path):
+                os.remove(mem_path)
+
+    def test_profile_persistence(self):
+        from app.commands import CommandRouter
+        from memory_manager import MemoryManager
+        import tempfile
+        import os
+        
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp_mem:
+            mem_path = tmp_mem.name
+            
+        try:
+            memory = MemoryManager(storage_path=mem_path)
+            router = CommandRouter(memory_manager=memory)
+            
+            # Edit name
+            res = router.route("/profile edit name Biruk")
+            traits = memory.memory.get("user_traits", {})
+            self.assertEqual(traits.get("name"), "Biruk")
+            
+            # Edit age
+            res = router.route("/profile edit age 25")
+            traits = memory.memory.get("user_traits", {})
+            self.assertEqual(traits.get("age"), 25)
+        finally:
+            if os.path.exists(mem_path):
+                os.remove(mem_path)
+
+
+# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     unittest.main(verbosity=2)

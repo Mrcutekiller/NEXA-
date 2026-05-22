@@ -46,7 +46,7 @@ class TestTerminalWorkspace(unittest.TestCase):
         
         # Focus back
         self.workspace.focus_pane("1")
-        self.assertEqual(self.workspace.get_active_pane().label, "Primary")
+        self.assertEqual(self.workspace.get_active_pane().label, "Chat")
 
     def test_session_restoration(self):
         """Verify that state persists to disk and restores correctly."""

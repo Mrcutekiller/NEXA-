@@ -1,5 +1,7 @@
 import random
 import re
+import os
+from typing import Optional
 from datetime import datetime
 from nexa_skills import NexaSkills
 from app.features.knowledge import NexaKnowledgeBase
@@ -7,8 +9,9 @@ from app.features.rag import NexaRAG
 from app.features.monitor import NexaMonitor
 
 class NexaLogicEngine:
-    def __init__(self, user_summary=None, storage=None):
+    def __init__(self, user_summary=None, storage=None, memory_manager=None):
         self.storage = storage
+        self.memory_manager = memory_manager
         self.kb = NexaKnowledgeBase()
         self.rag = NexaRAG()
         self.monitor = NexaMonitor()
@@ -17,6 +20,7 @@ class NexaLogicEngine:
         self.last_response_type = None
         self.last_responses = {}
         self.skills = NexaSkills()
+        self.generator = NexaLocalGenerator()
         
         # Identity, Creator, and Version Info
         self.name = "NEXA OMNI"
@@ -443,24 +447,98 @@ class NexaLogicEngine:
                 fact_contents += "."
             return f"{fact_contents} You taught me this."
 
-        # 3. Check if conversational or tool/skill call
-        response_type = self.analyze_input(user_input)
-        
-        # Allowed responses: basic conversation & system/action commands
-        allowed_types = {
-            "identity", "creator", "birthday_info", "greetings", "identity_check",
-            "joke_reaction", "acknowledgments", "short_queries", "boring_reaction",
-            "joke_followup", "funny_reaction_to_no_joke", "serious", "sarcastic",
-            "playful", "angry", "flirty", "date_query"
-        }
-        
-        if response_type in allowed_types or response_type.startswith("skill_"):
-            return None
+        # Bypassed to allow the AI to answer coding and general questions natively
+        return None
 
-        # 4. Return zero-knowledge fallback
-        return self.get_zero_knowledge_fallback(user_input)
+    def _auto_learn_from_user(self, text: str) -> None:
+        """Dynamically learns facts about the user or their preferences from chat."""
+        import json
+        text_clean = text.strip("?.! ").lower()
+        
+        # 1. Capture names: "my name is [name]", "i am called [name]", "i am [name]" (capitalized name)
+        name_match = re.search(r"\bmy name is\s+([a-zA-Z0-9_]+)", text, re.IGNORECASE)
+        if not name_match:
+            name_match = re.search(r"\bi am called\s+([a-zA-Z0-9_]+)", text, re.IGNORECASE)
+        if not name_match:
+            # Let's match "i am [CapitalizedName]" or "i'm [CapitalizedName]"
+            name_match = re.search(r"\bi'm\s+([A-Z][a-zA-Z0-9_]*)", text)
+            if not name_match:
+                name_match = re.search(r"\bi am\s+([A-Z][a-zA-Z0-9_]*)", text)
+        
+        if name_match:
+            new_name = name_match.group(1).strip().capitalize()
+            # Avoid matching common words
+            if new_name.lower() not in ["a", "an", "the", "not", "very", "happy", "sad", "tired", "busy", "here", "there", "good", "bad", "fine"]:
+                self.user_name = new_name
+                if self.memory_manager:
+                    traits = self.memory_manager.memory.setdefault("user_traits", {})
+                    traits["name"] = new_name
+                    self.memory_manager.save_memory()
+                else:
+                    if os.path.exists("nexa_memory.json"):
+                        try:
+                            with open("nexa_memory.json", "r") as f:
+                                data = json.load(f)
+                            data.setdefault("user_traits", {})["name"] = new_name
+                            with open("nexa_memory.json", "w") as f:
+                                json.dump(data, f, indent=4)
+                        except:
+                            pass
+                            
+        # 2. Capture Age: "i am 25 years old" or "i'm 30 years old" or "i am 25" / "i'm 30"
+        age_match = re.search(r"\bi am\s+(\d+)\s*years?\s*old", text_clean, re.IGNORECASE)
+        if not age_match:
+            age_match = re.search(r"\bi'm\s+(\d+)\s*years?\s*old", text_clean, re.IGNORECASE)
+        if not age_match:
+            age_match = re.search(r"\b(?:i am|i'm)\s+(\d{2})\b", text_clean, re.IGNORECASE)
+        if age_match:
+            new_age = int(age_match.group(1))
+            if self.memory_manager:
+                traits = self.memory_manager.memory.setdefault("user_traits", {})
+                traits["age"] = new_age
+                self.memory_manager.save_memory()
+            else:
+                if os.path.exists("nexa_memory.json"):
+                    try:
+                        with open("nexa_memory.json", "r") as f:
+                            data = json.load(f)
+                        data.setdefault("user_traits", {})["age"] = new_age
+                        with open("nexa_memory.json", "w") as f:
+                            json.dump(data, f, indent=4)
+                    except:
+                        pass
+
+        # 3. Capture Interests: "i like [interests]" or "i am interested in [interests]"
+        interests_match = re.search(r"\bi (?:like|love|enjoy|am interested in)\s+([a-zA-Z0-9_, ]+)", text_clean, re.IGNORECASE)
+        if interests_match:
+            new_interests = [i.strip() for i in interests_match.group(1).split(",") if i.strip()]
+            if self.memory_manager:
+                traits = self.memory_manager.memory.setdefault("user_traits", {})
+                # Union with existing interests
+                existing = traits.get("interests", [])
+                for item in new_interests:
+                    if item not in existing and len(item) < 30: # sanity check
+                        existing.append(item)
+                traits["interests"] = existing
+                self.memory_manager.save_memory()
+            
+        # 4. Capture general declarations like "I like [thing]" or "My favorite [thing] is [value]"
+        fav_match = re.search(r"\bmy favorite\s+(\w+)\s+is\s+([a-zA-Z0-9_ ]+)", text, re.IGNORECASE)
+        if fav_match:
+            thing = fav_match.group(1).strip()
+            value = fav_match.group(2).strip()
+            self.kb.learn_fact(f"User's favorite {thing} is {value}", source="auto-learned from conversation", topic="user_preference")
+            
+        # 5. Capture learning/coding declarations: "I am building [thing]" or "I am working on [thing]"
+        work_match = re.search(r"\bi am (?:building|working on|developing)\s+(.+)", text, re.IGNORECASE)
+        if work_match:
+            project = work_match.group(1).strip()
+            self.kb.learn_fact(f"User is working on: {project}", source="auto-learned from conversation", topic="projects")
 
     def generate_response(self, user_input):
+        # Dynamically extract and auto-learn traits or details
+        self._auto_learn_from_user(user_input)
+        
         # Update Mood based on user input tone
         self._update_mood_from_input(user_input)
         
@@ -525,6 +603,21 @@ class NexaLogicEngine:
             response = random.choice(self.jokes_told)
             self.last_response_type = "joke"
             return response
+
+        # Try local generator first for coding, design, debug/fix or general fallback queries
+        generator_compatible = {
+            "coding_skills", "game_development", "document_office_pro",
+            "multimedia_production", "mobile_web_dev", "trading_skills",
+            "rizz_skills", "cybersecurity", "creative_writing", "history",
+            "space", "business", "health", "art", "fallback"
+        }
+        if response_type in generator_compatible:
+            gen_model = self._get_generation_model_key(user_input)
+            gen_response = self.generator.generate(user_input, gen_model)
+            if gen_response:
+                self.last_responses[response_type] = gen_response
+                self.last_response_type = response_type
+                return gen_response
 
         # Standard Knowledge Base
         responses = self.knowledge_base.get(response_type, self.knowledge_base["fallback"])
@@ -600,6 +693,12 @@ class NexaLogicEngine:
             return self._handle_auth_command(action, options)
         elif category == "forge":
             return self._handle_forge_command(action, options)
+        elif category == "learn":
+            return self._handle_learn_command(action, options)
+        elif category == "knowledge":
+            return self._handle_knowledge_command(action, options)
+        elif category == "forget":
+            return self._handle_forget_command(action, options)
         elif category == "help":
             return self._handle_help_command(action)
         
@@ -627,17 +726,63 @@ class NexaLogicEngine:
 
     def _handle_profile_command(self, action, options):
         """Handles user profile management."""
-        # Default to view if no action or if action is the first option
-        if not action or action == "view":
-            return f"Profile: {self.user_name} | Vibe: {self.mood} | Knowledge Level: OMNI | Relationship: {self.relationship_level}%"
+        if not self.memory_manager:
+            return "[ERROR] Memory manager not linked."
+            
+        traits = self.memory_manager.memory.setdefault("user_traits", {})
         
-        if action == "update" or action == "edit":
-            if options:
-                new_name = " ".join(options)
-                self.user_name = new_name
-                return f"Identity synchronized. Welcome, {new_name}."
-            return "[ERROR] New name required. Try: /profile update [Name]"
-        return f"[ERROR] Unknown profile action '{action}'. Use 'view' or 'update'."
+        name = traits.get("name") or "Human"
+        age = traits.get("age") or "Not set"
+        interests = traits.get("interests") or []
+        interests_str = ", ".join(interests) if interests else "None"
+        vibe = traits.get("dominant_mood") or "neutral"
+        count = traits.get("interaction_count") or 0
+        
+        if not action or action in ["view", "show"]:
+            res = (
+                f"👤 \033[1mUSER PROFILE\033[0m\n"
+                f"  ➔ Name:      {name}\n"
+                f"  ➔ Age:       {age}\n"
+                f"  ➔ Interests: {interests_str}\n"
+                f"  ➔ Mood:      {vibe}\n"
+                f"  ➔ Chats:     {count} turns\n"
+                f"\nTo edit your profile, use:\n"
+                f"  /profile edit name <new_name>\n"
+                f"  /profile edit age <new_age>\n"
+                f"  /profile edit interests <interest1, interest2, ...>"
+            )
+            return res
+            
+        if action == "edit" or action == "update":
+            if not options or len(options) < 2:
+                return "[ERROR] Usage: /profile edit <name|age|interests> <value>"
+            
+            field = options[0].lower()
+            value = " ".join(options[1:]).strip()
+            
+            if field == "name":
+                traits["name"] = value.capitalize()
+                self.user_name = traits["name"]
+                self.memory_manager.save_memory()
+                return f"[SUCCESS] Name updated to '{traits['name']}'."
+                
+            elif field == "age":
+                if not value.isdigit():
+                    return "[ERROR] Age must be a number."
+                traits["age"] = int(value)
+                self.memory_manager.save_memory()
+                return f"[SUCCESS] Age updated to {traits['age']}."
+                
+            elif field == "interests":
+                items = [i.strip() for i in value.split(",") if i.strip()]
+                traits["interests"] = items
+                self.memory_manager.save_memory()
+                return f"[SUCCESS] Interests updated to: {', '.join(items)}."
+                
+            else:
+                return f"[ERROR] Unknown profile field '{field}'. You can edit name, age, or interests."
+                
+        return f"[ERROR] Unknown profile action '{action}'. Use '/profile view' or '/profile edit'."
 
     def _handle_file_command(self, action, options):
         if not action or action == "view":
@@ -675,19 +820,48 @@ class NexaLogicEngine:
         
         skills = self.storage.config.get("installed_skills", {})
         
-        if not action or action == "view" or action == "list":
-            if not skills: return "No external skills installed. Just my core intelligence here."
-            res = "Installed Skills:\n"
-            for name, info in skills.items():
-                res += f"- {name} (Installed: {info.get('installed_at')})\n"
+        built_in_skills = {
+            "web_search": "Perform live search or browser lookup",
+            "open_app": "Launch system applications (e.g. CapCut)",
+            "edit_video": "Autonomous video editing assistance",
+            "file_system": "Read, write, edit, delete, and find files",
+            "image_analysis": "Scan and analyze images locally",
+            "gold_price": "Fetch live financial and commodity data",
+            "math_solver": "Process and solve arithmetic expressions",
+            "date_time": "Compute relative dates and times"
+        }
+        
+        if not action or action in ["view", "list"]:
+            res = "🛠️ \033[1mCORE BUILT-IN SKILLS\033[0m\n"
+            for sname, sdesc in built_in_skills.items():
+                res += f"  ➔ {sname:<15} - {sdesc}\n"
+                
+            res += "\n🔌 \033[1mEXTERNAL SKILLS\033[0m\n"
+            if not skills:
+                res += "  No external skills installed. Just my core intelligence here.\n"
+            else:
+                for sname, info in skills.items():
+                    res += f"  ➔ {sname:<15} (Installed: {info.get('installed_at')}) [Active]\n"
+                    
+            res += (
+                f"\nTo add a new skill, use:\n"
+                f"  /skill add <name> <source_url_or_repo>\n"
+                f"To remove a skill, use:\n"
+                f"  /skill remove <name>"
+            )
             return res
             
-        elif action == "install":
-            if not options: return "[ERROR] Skill source required (e.g., github:user/repo or url)."
-            source = options[0]
-            name = source.split("/")[-1].replace(".json", "")
+        elif action in ["add", "install"]:
+            if not options or len(options) < 1:
+                return "[ERROR] Usage: /skill add <name> [source] or /skill add <source>"
             
-            # Simulation of the installation pipeline
+            if len(options) >= 2:
+                name = options[0]
+                source = options[1]
+            else:
+                source = options[0]
+                name = source.split("/")[-1].replace(".json", "")
+                
             print(f"[NEXA] 1. Downloading package from {source}...")
             print(f"[NEXA] 2. Verifying compatibility...")
             print(f"[NEXA] 3. Sandbox validation...")
@@ -699,22 +873,24 @@ class NexaLogicEngine:
                 "installed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "status": "active"
             }
+            self.storage.config["installed_skills"] = skills
             self.storage.save()
             return f"[SUCCESS] Skill '{name}' activated immediately. 🔥"
-
-        elif action == "remove" or action == "delete":
+            
+        elif action in ["remove", "delete"]:
             if not options: return "[ERROR] Skill name required."
             name = options[0]
             if name in skills:
                 del skills[name]
+                self.storage.config["installed_skills"] = skills
                 self.storage.save()
                 return f"[SUCCESS] Skill '{name}' removed."
             return f"[ERROR] Skill '{name}' not found."
-
+            
         elif action == "update":
             if not options: return "[ERROR] Skill name required."
             return f"[SYSTEM] Checking for updates for {options[0]}... Already at latest version."
-
+            
         return f"[ERROR] Unknown skill action '{action}'."
 
     def _handle_api_command(self, action, options):
@@ -735,7 +911,6 @@ class NexaLogicEngine:
             if name not in providers:
                 providers[name] = {"type": "external", "active": False, "key": None}
             
-            # Interactive setup simulation
             res = f"[NEXA] Setting up {name} API...\n"
             if len(options) > 1:
                 providers[name]["key"] = options[1]
@@ -743,7 +918,6 @@ class NexaLogicEngine:
                 self.storage.save()
                 return res + f"[SUCCESS] API Key for {name} saved and activated."
             return res + f"[INFO] Please provide the API key: 'nexa api add {name} YOUR_KEY'"
-
         elif action == "remove":
             if not options: return "[ERROR] Provider name required."
             name = options[0].upper()
@@ -753,30 +927,141 @@ class NexaLogicEngine:
                 self.storage.save()
                 return f"[SUCCESS] {name} API removed/deactivated."
             return f"[ERROR] Provider {name} not found."
-
+ 
         elif action == "test":
             name = options[0].upper() if options else self.storage.config.get("active_provider")
             return f"[SYSTEM] Testing connection to {name}... Success. Latency: 42ms."
-
+ 
         return f"[ERROR] Unknown API action '{action}'."
 
     def _handle_model_command(self, action, options):
         if not self.storage: return "[ERROR] Storage system not linked."
         
-        if not action or action == "view" or action == "current":
-            return f"Current Model: {self.active_model} | Provider: {self.storage.config.get('active_provider')}"
+        valid_models = {
+            "GOD_EYE": "Auto-Routing Master (natively routes requests to specialists)",
+            "CODE": "Senior Developer & Coding Specialist",
+            "DESIGN": "UI/UX & Styling Specialist",
+            "FIX": "Debugging & Error Fixing Specialist",
+            "ULTRA": "Full-Capabilities Master Model"
+        }
+        
+        current = str(self.active_model).upper()
+        
+        if not action or action in ["view", "list", "current"]:
+            res = "Available NEXA Models:\n"
+            for m, desc in valid_models.items():
+                if m == current:
+                    res += f"  ➔ \033[1m● {m:<10}\033[0m - {desc} [ACTIVE]\n"
+                else:
+                    res += f"    ○ {m:<10} - {desc}\n"
+            return res
             
         if action == "switch":
-            if not options: return "[ERROR] Model name required."
-            self.active_model = options[0]
+            if not options:
+                return f"[ERROR] Model name required. Available: {', '.join(valid_models.keys())}"
+            target = options[0].upper()
+            if target not in valid_models:
+                matched = None
+                for m in valid_models:
+                    if target in m:
+                        matched = m
+                        break
+                if matched:
+                    target = matched
+                else:
+                    return f"[ERROR] Invalid model '{target}'. Available: {', '.join(valid_models.keys())}"
+            
+            self.active_model = target
             self.storage.config["settings"]["active_model"] = self.active_model
             self.storage.save()
             return f"Neural path shifted. Active model: {self.active_model}. Locked and loaded."
-        
-        elif action == "list":
-            return "Available Models: GOD_EYE, GPT-4, GPT-3.5-Turbo, Claude-3-Opus, Claude-3-Sonnet, Gemini-Pro, DeepSeek-Chat, Mistral-7B."
-        
+            
         return f"[ERROR] Unknown model action '{action}'."
+
+    def _handle_learn_command(self, action, options):
+        if (action == "view" or action == "help") and not options:
+            return "[ERROR] Usage: /learn <topic> is <explanation> OR /learn <filename>"
+            
+        if not action:
+            return "[ERROR] Usage: /learn <topic> is <explanation> OR /learn <filename>"
+            
+        full_arg = (action + " " + " ".join(options)).strip()
+        
+        match = re.search(r'\s+is\s+', full_arg, re.IGNORECASE)
+        if match:
+            idx = match.start()
+            topic = full_arg[:idx].strip()
+            explanation = full_arg[idx + match.end() - idx:].strip()
+            
+            fact = self.kb.learn_fact(explanation, source="user taught directly", topic=topic)
+            return f"[SUCCESS] Fact learned!\n  ID: {fact['id']}\n  Topic: {fact['topic']}\n  Content: {fact['content']}"
+            
+        filepath = full_arg
+        if os.path.exists(filepath):
+            try:
+                facts = self.kb.learn_file(filepath)
+                return f"[SUCCESS] Learned {len(facts)} facts from file '{os.path.basename(filepath)}'."
+            except Exception as e:
+                return f"[ERROR] Failed to learn file: {str(e)}"
+        else:
+            fact = self.kb.learn_fact(full_arg, source="user taught directly", topic="general")
+            return f"[SUCCESS] Fact learned!\n  ID: {fact['id']}\n  Topic: {fact['topic']}\n  Content: {fact['content']}"
+
+    def _handle_knowledge_command(self, action, options):
+        stats = self.kb.get_stats()
+        
+        if not action or action in ["view", "stats"]:
+            res = (
+                f"🧠 \033[1mKNOWLEDGE BASE STATUS\033[0m\n"
+                f"  ➔ Total Learned Facts: {stats['total_facts']}\n"
+                f"  ➔ Topics:             {', '.join(stats['topics']) if stats['topics'] else 'None'}\n"
+                f"  ➔ Most Referenced:    {stats['most_referenced']}\n"
+                f"\nTo list facts, use:\n"
+                f"  /knowledge list\n"
+                f"To clear all knowledge, use:\n"
+                f"  /forget all"
+            )
+            return res
+            
+        if action in ["list", "facts"]:
+            facts = self.kb.data.get("facts", [])
+            if not facts:
+                return "No facts learned yet. Teach me with /learn."
+            res = "Learned Facts:\n"
+            for f in facts:
+                res += f"  [{f['id']}] ({f['topic']}): {f['content']} [ref: {f.get('times_referenced', 0)}]\n"
+            return res
+            
+        return f"[ERROR] Unknown knowledge action '{action}'."
+
+    def _handle_forget_command(self, action, options):
+        if not action:
+            return "[ERROR] Usage: /forget <fact_id> OR /forget all"
+            
+        target = (action + " " + " ".join(options)).strip().lower()
+        
+        if target == "all":
+            self.kb.clear_knowledge()
+            return "[SUCCESS] All learned knowledge has been cleared."
+            
+        fact_id = target
+        if fact_id.isdigit():
+            fact_id = f"fact_{int(fact_id):03d}"
+            
+        success = self.kb.delete_fact(fact_id)
+        if success:
+            return f"[SUCCESS] Forgotten fact {fact_id}."
+            
+        facts = self.kb.data.get("facts", [])
+        matched = [f for f in facts if target in f["content"].lower()]
+        if len(matched) == 1:
+            fid = matched[0]["id"]
+            self.kb.delete_fact(fid)
+            return f"[SUCCESS] Forgotten fact {fid}: '{matched[0]['content']}'"
+        elif len(matched) > 1:
+            return f"[ERROR] Multiple facts matched: {', '.join(f['id'] for f in matched)}. Be more specific."
+            
+        return f"[ERROR] Fact ID or content matching '{target}' not found."
 
     def _handle_help_command(self, category=None):
         if not category:
@@ -798,3 +1083,92 @@ class NexaLogicEngine:
 
     def get_new_chat_reaction(self):
         return random.choice(self.knowledge_base["new_chat_reaction"])
+
+    def _get_generation_model_key(self, user_input: str) -> str:
+        model_key = str(self.active_model).lower()
+        if model_key == "god_eye":
+            text_lower = user_input.lower()
+            code_score = sum(1 for kw in ["code", "python", "javascript", "script", "function", "class", "def ", "import ", "compile", "git ", "repo", "database", "sql", "api", "algorithm", "html", "array", "json"] if kw in text_lower)
+            design_score = sum(1 for kw in ["ui", "ux", "design", "color", "palette", "theme", "aesthetic", "css", "style", "layout", "visual", "padding", "margin", "button", "svg", "navbar", "component", "mockup", "wireframe"] if kw in text_lower)
+            fix_score = sum(1 for kw in ["error", "bug", "fix", "crash", "broken", "exception", "traceback", "fail", "issue", "debug", "logs", "why does this fail", "syntax error"] if kw in text_lower)
+            
+            scores = {"code": code_score, "design": design_score, "fix": fix_score, "ultra": 1}
+            return max(scores, key=scores.get)
+        return model_key
+
+
+class NexaLocalGenerator:
+    """
+    Lazy-loaded local text generator using transformers.
+    Falls back to 'gpt2' if local directories are empty or missing.
+    """
+    def __init__(self):
+        self.tokenizer = None
+        self.model = None
+        self.device = None
+        self.loaded_key = None
+
+    def load_model(self, model_key: str):
+        try:
+            import torch
+            from transformers import AutoTokenizer, AutoModelForCausalLM
+        except ImportError:
+            return None, None, None
+
+        # Clean/normalize model key
+        model_key = model_key.lower().replace("nexa ", "").strip()
+        if model_key not in ["code", "design", "fix", "ultra"]:
+            model_key = "ultra"
+
+        # If already loaded the same model, return it
+        if self.model is not None and self.loaded_key == model_key:
+            return self.model, self.tokenizer, self.device
+
+        # Path to local weights
+        model_path = f"models/{model_key}"
+        if not os.path.exists(model_path) or not os.path.exists(os.path.join(model_path, "config.json")):
+            model_path = "gpt2"
+
+        try:
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+            if self.tokenizer.pad_token is None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+            self.model = AutoModelForCausalLM.from_pretrained(model_path)
+            self.model.to(self.device)
+            self.model.eval()
+            self.loaded_key = model_key
+        except Exception:
+            return None, None, None
+
+        return self.model, self.tokenizer, self.device
+
+    def generate(self, prompt: str, model_key: str, max_new_tokens: int = 100) -> Optional[str]:
+        model, tokenizer, device = self.load_model(model_key)
+        if model is None or tokenizer is None:
+            return None
+
+        try:
+            import torch
+            input_text = f"User: {prompt}\nNEXA:"
+            inputs = tokenizer(input_text, return_tensors="pt").to(device)
+            
+            with torch.no_grad():
+                outputs = model.generate(
+                    **inputs,
+                    max_new_tokens=max_new_tokens,
+                    pad_token_id=tokenizer.pad_token_id,
+                    eos_token_id=tokenizer.eos_token_id,
+                    do_sample=True,
+                    temperature=0.7,
+                    top_p=0.9
+                )
+            
+            decoded = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            response = decoded[len(input_text):].strip()
+            if not response:
+                response = decoded.replace(input_text, "").strip()
+            return response if response else None
+        except Exception:
+            return None
+

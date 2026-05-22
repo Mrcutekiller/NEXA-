@@ -41,6 +41,8 @@ from app.features.xp import XPManager
 from app.features.challenges import ChallengeManager
 from app.features.notebook import NotebookManager
 from app.commands import CommandRouter
+from nexa_storage import NexaStorage
+from memory_manager import MemoryManager
 
 # Import engine
 from nexa_engine import NexaLogicEngine
@@ -73,20 +75,35 @@ class NexaApp(App):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # Backend managers
+        self.storage = NexaStorage()
+        self.memory = MemoryManager()
         self.model_manager = NexaModelManager()
+        
+        # Sync active model from storage config
+        active_model_from_config = self.storage.config.get("settings", {}).get("active_model") or self.storage.config.get("active_model")
+        if active_model_from_config:
+            self.model_manager.active_model_key = active_model_from_config.lower()
+            
         self.xp_manager = XPManager()
         self.challenge_manager = ChallengeManager(self.xp_manager)
         self.notebook_manager = NotebookManager()
         
         # Engine
-        self.engine = NexaLogicEngine(user_summary=self.xp_manager.stats, storage=None)
+        self.engine = NexaLogicEngine(
+            user_summary=self.memory.get_context_summary(),
+            storage=self.storage,
+            memory_manager=self.memory
+        )
+        self.engine.active_model = self.model_manager.active_model_key.upper()
         
         # Command Router
         self.router = CommandRouter(
             model_manager=self.model_manager,
             xp_manager=self.xp_manager,
             challenge_manager=self.challenge_manager,
-            notebook_manager=self.notebook_manager
+            notebook_manager=self.notebook_manager,
+            storage=self.storage,
+            memory_manager=self.memory
         )
         
         # Voice (optional load to prevent blocking)
@@ -185,7 +202,8 @@ class NexaApp(App):
         self.model_manager.subscribe_model_switch(self.on_model_switched_event)
 
         # 5. Welcome message
-        self.append_bot_message("Welcome back! I am NEXA, your personality-driven AI assistant. Feel free to type in natural language or use [bold]/help[/bold] to see slash commands.")
+        name = self.memory.memory.get("user_traits", {}).get("name") or "Human"
+        self.append_bot_message(f"Welcome back, {name}! I am NEXA, your personality-driven AI assistant. Feel free to type in natural language or use [bold]/help[/bold] to see slash commands.")
 
     def _init_voice_system(self):
         try:
@@ -245,7 +263,9 @@ class NexaApp(App):
             "code": "\033[38;5;33m",     # Cyan-Blue
             "design": "\033[38;5;201m",   # Pink-Magenta
             "fix": "\033[38;5;196m",      # Crimson Red
-            "ultra": "\033[38;5;220m"     # Gold
+            "ultra": "\033[38;5;220m",    # Gold
+            "god_eye": "\033[38;5;120m",  # Emerald Green
+            "claude": "\033[38;5;214m"    # Amber/Orange
         }
         self.cube.set_color(ansi_colors.get(active_key, "\033[38;5;220m"))
         
@@ -259,6 +279,7 @@ class NexaApp(App):
         self.suggest_btn_3.label = f"Generate Insights"
 
     def on_model_switched_event(self, key: str, cfg: Any):
+        self.engine.active_model = key.upper()
         self.sync_model_ui()
         self.refresh_stats_ui()
 
@@ -496,7 +517,7 @@ class NexaApp(App):
         # Run logic engine
         # Temporarily adapt mood for persona
         self.engine.active_model = active_model_cfg.key.upper()
-        self.engine.user_name = self.xp_manager.stats.get("name", "Human")
+        self.engine.user_name = self.memory.memory.get("user_traits", {}).get("name") or "Human"
         
         response = self.engine.generate_response(text)
         

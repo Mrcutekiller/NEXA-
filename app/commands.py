@@ -36,11 +36,13 @@ class CommandResult:
     success: bool = True
 
 class CommandRouter:
-    def __init__(self, model_manager=None, xp_manager=None, challenge_manager=None, notebook_manager=None):
+    def __init__(self, model_manager=None, xp_manager=None, challenge_manager=None, notebook_manager=None, storage=None, memory_manager=None):
         self.model_manager = model_manager
         self.xp_manager = xp_manager
         self.challenge_manager = challenge_manager
         self.notebook_manager = notebook_manager
+        self.storage = storage
+        self.memory_manager = memory_manager
 
         # Initialize all v4 features
         self.kb = NexaKnowledgeBase()
@@ -69,6 +71,8 @@ class CommandRouter:
         # 1. Universal / Global Commands
         self.commands["/help"] = (self._cmd_help, "universal", "Display all commands or help for active model.")
         self.commands["/model"] = (self._cmd_model, "universal", "Switch active model. Usage: /model [code|design|fix|ultra]")
+        self.commands["/profile"] = (self._cmd_profile, "universal", "View or edit user profile. Usage: /profile [view|edit] [field] [value]")
+        self.commands["/skill"] = (self._cmd_skill, "universal", "Manage custom and built-in skills. Usage: /skill [list|add|remove] [name] [source]")
         self.commands["/voice"] = (self._cmd_voice, "universal", "Toggle voice output/input. Usage: /voice [on|off]")
         self.commands["/stats"] = (self._cmd_stats, "universal", "Show current level, XP progress, and streaks.")
         self.commands["/challenges"] = (self._cmd_challenges, "universal", "Show daily challenge for the active model.")
@@ -196,20 +200,175 @@ Type more specific slash commands like /knowledge, /project, /vault, /badges, /s
         return CommandResult(text=help_text.strip(), xp_event="command_run")
 
     def _cmd_model(self, args: str) -> CommandResult:
-        if not args:
-            return CommandResult(text="Please specify a model. Select from: code, design, fix, ultra.")
-        model_key = args.strip().lower()
         if not self.model_manager:
             return CommandResult(text="Model Manager offline.")
+            
+        if not args:
+            res = "Registered Models:\n"
+            for key, config in self.model_manager.models.items():
+                bullet = "➔ ●" if key == self.model_manager.active_model_key else "  ○"
+                status = "[ACTIVE]" if key == self.model_manager.active_model_key else "[INACTIVE]"
+                res += f"  {bullet} {config.icon} {config.name:<15} - {config.personality} {status}\n"
+            return CommandResult(text=res.strip())
+            
+        model_key = args.strip().lower()
+        if model_key.startswith("switch "):
+            model_key = model_key[len("switch "):].strip()
+        model_key = model_key.replace(" ", "_")
+        
         if model_key not in self.model_manager.models:
             return CommandResult(text=f"Unknown model: '{model_key}'.")
+            
         old_key = self.model_manager.active_model_key
         self.model_manager.set_active_model(model_key)
+        
+        # Save model switch to config/storage if available
+        if self.storage:
+            self.storage.config.setdefault("settings", {})["active_model"] = model_key
+            self.storage.config["active_model"] = model_key
+            self.storage.save()
+            
         return CommandResult(
             text=f"Switched model from {old_key.upper()} to {model_key.upper()}.",
             xp_event="model_switched",
             animation="model_switch"
         )
+
+    def _cmd_profile(self, args: str) -> CommandResult:
+        if not self.memory_manager:
+            return CommandResult(text="[ERROR] Memory manager not linked.")
+            
+        traits = self.memory_manager.memory.setdefault("user_traits", {})
+        
+        name = traits.get("name") or "Human"
+        age = traits.get("age") or "Not set"
+        interests = traits.get("interests") or []
+        interests_str = ", ".join(interests) if interests else "None"
+        vibe = traits.get("dominant_mood") or "neutral"
+        count = traits.get("interaction_count") or 0
+        
+        parts = args.strip().split(" ", 1)
+        action = parts[0].lower() if parts[0] else "view"
+        options = parts[1] if len(parts) > 1 else ""
+        
+        if action in ["view", "show"]:
+            res = (
+                f"👤 \033[1mUSER PROFILE\033[0m\n"
+                f"  ➔ Name:      {name}\n"
+                f"  ➔ Age:       {age}\n"
+                f"  ➔ Interests: {interests_str}\n"
+                f"  ➔ Mood:      {vibe}\n"
+                f"  ➔ Chats:     {count} turns\n"
+                f"\nTo edit your profile, use:\n"
+                f"  /profile edit name <new_name>\n"
+                f"  /profile edit age <new_age>\n"
+                f"  /profile edit interests <interest1, interest2, ...>"
+            )
+            return CommandResult(text=res)
+            
+        elif action == "edit":
+            if not options:
+                return CommandResult(text="[ERROR] Usage: /profile edit <name|age|interests> <value>")
+            opt_parts = options.split(" ", 1)
+            field = opt_parts[0].lower()
+            value = opt_parts[1].strip() if len(opt_parts) > 1 else ""
+            if not value:
+                return CommandResult(text=f"[ERROR] Value required for profile field '{field}'.")
+                
+            if field == "name":
+                traits["name"] = value.capitalize()
+                self.memory_manager.save_memory()
+                return CommandResult(text=f"[SUCCESS] Name updated to '{traits['name']}'.")
+            elif field == "age":
+                if not value.isdigit():
+                    return CommandResult(text="[ERROR] Age must be a number.")
+                traits["age"] = int(value)
+                self.memory_manager.save_memory()
+                return CommandResult(text=f"[SUCCESS] Age updated to {traits['age']}.")
+            elif field == "interests":
+                items = [i.strip() for i in value.split(",") if i.strip()]
+                traits["interests"] = items
+                self.memory_manager.save_memory()
+                return CommandResult(text=f"[SUCCESS] Interests updated to: {', '.join(items)}.")
+            else:
+                return CommandResult(text=f"[ERROR] Unknown profile field '{field}'. Edit name, age, or interests.")
+        else:
+            return CommandResult(text=f"[ERROR] Unknown action '{action}'. Use '/profile view' or '/profile edit'.")
+
+    def _cmd_skill(self, args: str) -> CommandResult:
+        if not self.storage:
+            return CommandResult(text="[ERROR] Storage system not linked.")
+            
+        skills = self.storage.config.get("installed_skills", {})
+        
+        built_in_skills = {
+            "web_search": "Perform live search or browser lookup",
+            "open_app": "Launch system applications (e.g. CapCut)",
+            "edit_video": "Autonomous video editing assistance",
+            "file_system": "Read, write, edit, delete, and find files",
+            "image_analysis": "Scan and analyze images locally",
+            "gold_price": "Fetch live financial and commodity data",
+            "math_solver": "Process and solve arithmetic expressions",
+            "date_time": "Compute relative dates and times"
+        }
+        
+        parts = args.strip().split(" ", 1)
+        action = parts[0].lower() if parts[0] else "list"
+        options_str = parts[1].strip() if len(parts) > 1 else ""
+        
+        if action in ["list", "view"]:
+            res = "🛠️ \033[1mCORE BUILT-IN SKILLS\033[0m\n"
+            for sname, sdesc in built_in_skills.items():
+                res += f"  ➔ {sname:<15} - {sdesc}\n"
+                
+            res += "\n🔌 \033[1mEXTERNAL SKILLS\033[0m\n"
+            if not skills:
+                res += "  No external skills installed. Just my core intelligence here.\n"
+            else:
+                for sname, info in skills.items():
+                    res += f"  ➔ {sname:<15} (Installed: {info.get('installed_at')}) [Active]\n"
+            res += (
+                f"\nTo add a new skill, use:\n"
+                f"  /skill add <name> <source_url_or_repo>\n"
+                f"To remove a skill, use:\n"
+                f"  /skill remove <name>"
+            )
+            return CommandResult(text=res)
+            
+        elif action in ["add", "install"]:
+            if not options_str:
+                return CommandResult(text="[ERROR] Usage: /skill add <name> [source] or /skill add <source>")
+            
+            opt_parts = options_str.split(" ", 1)
+            if len(opt_parts) >= 2:
+                name = opt_parts[0]
+                source = opt_parts[1]
+            else:
+                source = opt_parts[0]
+                name = source.split("/")[-1].replace(".json", "")
+                
+            from datetime import datetime
+            skills[name] = {
+                "source": source,
+                "installed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "status": "active"
+            }
+            self.storage.config["installed_skills"] = skills
+            self.storage.save()
+            return CommandResult(text=f"[SUCCESS] Skill '{name}' activated immediately. 🔥")
+            
+        elif action in ["remove", "delete"]:
+            if not options_str:
+                return CommandResult(text="[ERROR] Skill name required.")
+            name = options_str
+            if name in skills:
+                del skills[name]
+                self.storage.config["installed_skills"] = skills
+                self.storage.save()
+                return CommandResult(text=f"[SUCCESS] Skill '{name}' removed.")
+            return CommandResult(text=f"[ERROR] Skill '{name}' not found.")
+            
+        return CommandResult(text=f"[ERROR] Unknown skill action '{action}'.")
 
     def _cmd_voice(self, args: str) -> CommandResult:
         opt = args.strip().lower()

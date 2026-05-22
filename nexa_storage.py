@@ -3,6 +3,7 @@ import os
 import sqlite3
 import logging
 from datetime import datetime
+from colorama import Fore, Style
 
 # Setup Logging
 logging.basicConfig(

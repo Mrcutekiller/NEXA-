@@ -16,3 +16,6 @@ jinja2
 python-multipart
 aiofiles
 textual
+torch
+transformers
+

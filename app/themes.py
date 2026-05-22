@@ -182,6 +182,94 @@ TEXTUAL_THEMES = {
                 color: #fefce8;
             }
         """
+    },
+    "god_eye": {
+        "primary": "#10B981",
+        "primary_dark": "#047857",
+        "background": "#064e3b",
+        "surface": "#022c22",
+        "text": "#ecfdf5",
+        "accent": "#34d399",
+        "title": "Emerald Green | Routing Coordinator",
+        "css": """
+            Screen {
+                background: #064e3b;
+                color: #ecfdf5;
+            }
+            .sidebar {
+                background: #022c22;
+                border-right: tall #10B981;
+                width: 32;
+            }
+            .title-bar {
+                background: #10B981;
+                color: #064e3b;
+                text-style: bold;
+                height: 3;
+            }
+            .chat-bubble-user {
+                background: #065f46;
+                color: #ecfdf5;
+                border: round #34d399;
+                margin: 1 2;
+                padding: 1 2;
+            }
+            .chat-bubble-bot {
+                background: #022c22;
+                color: #ecfdf5;
+                border: round #10B981;
+                margin: 1 2;
+                padding: 1 2;
+            }
+            .status-bar {
+                background: #047857;
+                color: #ecfdf5;
+            }
+        """
+    },
+    "claude": {
+        "primary": "#d97706",
+        "primary_dark": "#78350f",
+        "background": "#1c1917",
+        "surface": "#292524",
+        "text": "#f5f5f4",
+        "accent": "#f59e0b",
+        "title": "Warm Amber | Claude Theme",
+        "css": """
+            Screen {
+                background: #1c1917;
+                color: #f5f5f4;
+            }
+            .sidebar {
+                background: #292524;
+                border-right: tall #d97706;
+                width: 32;
+            }
+            .title-bar {
+                background: #d97706;
+                color: #1c1917;
+                text-style: bold;
+                height: 3;
+            }
+            .chat-bubble-user {
+                background: #44403c;
+                color: #f5f5f4;
+                border: round #f59e0b;
+                margin: 1 2;
+                padding: 1 2;
+            }
+            .chat-bubble-bot {
+                background: #292524;
+                color: #f5f5f4;
+                border: round #d97706;
+                margin: 1 2;
+                padding: 1 2;
+            }
+            .status-bar {
+                background: #78350f;
+                color: #f5f5f4;
+            }
+        """
     }
 }
 
@@ -209,6 +297,18 @@ ANSI_THEMES = {
         "primary": "\033[38;2;234;179;8m",     # #EAB308
         "accent": "\033[38;2;253;224;71m",    # #fde047
         "bg_highlight": "\033[48;2;35;31;12m",
+        "reset": "\033[0m"
+    },
+    "god_eye": {
+        "primary": "\033[38;2;16;185;129m",    # #10B981
+        "accent": "\033[38;2;52;211;153m",     # #34d399
+        "bg_highlight": "\033[48;2;6;78;59m",
+        "reset": "\033[0m"
+    },
+    "claude": {
+        "primary": "\033[38;2;217;119;6m",     # #d97706
+        "accent": "\033[38;2;245;158;11m",     # #f59e0b
+        "bg_highlight": "\033[48;2;41;37;36m",
         "reset": "\033[0m"
     }
 }
