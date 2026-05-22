@@ -13,3 +13,8 @@ subprocess
 psutil
 selenium
 webdriver-manager
+fastapi
+uvicorn
+jinja2
+python-multipart
+aiofiles

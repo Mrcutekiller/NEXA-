@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXA OMNI | Authorization</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #050505; color: #e5e5e5; }
+        .glass { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+    </style>
+</head>
+<body class="h-screen flex items-center justify-center p-6">
+    <div class="max-w-md w-full glass rounded-3xl p-10 shadow-2xl text-center space-y-8">
+        <div class="space-y-2">
+            <h1 class="text-3xl font-semibold tracking-tighter">NEXA <span class="text-cyan-500">OMNI</span></h1>
+            <p class="text-white/40 text-sm">Neural Interface v8.0.0</p>
+        </div>
+        
+        <div class="py-4">
+            <p class="text-white/60 text-sm leading-relaxed">System offline. Please re-establish your neural link to continue accessing the God-Mode protocols.</p>
+        </div>
+
+        <button onclick="window.location.href='/'" class="w-full bg-white text-black font-semibold py-4 rounded-2xl hover:bg-cyan-400 transition-all transform active:scale-[0.98]">
+            Re-establish Link
+        </button>
+        
+        <p class="text-[10px] text-white/20 uppercase tracking-widest">Authorized Personnel Only</p>
+    </div>
+</body>
+</html>

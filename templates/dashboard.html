@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ engine_name }} | Professional Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; color: #e5e5e5; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .neon-text { text-shadow: 0 0 10px rgba(6, 182, 212, 0.5); }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .scroll-custom::-webkit-scrollbar { width: 6px; }
+        .scroll-custom::-webkit-scrollbar-track { background: transparent; }
+        .scroll-custom::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+
+        /* Requirement 1 & 3: Enlarged Nexa & Launch Animations */
+        .nexa-core-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            animation: scaleIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .nexa-orb {
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle at 30% 30%, #22d3ee, #0891b2);
+            border-radius: 50%;
+            box-shadow: 0 0 40px rgba(34, 211, 238, 0.4), inset 0 0 20px rgba(255, 255, 255, 0.2);
+            position: relative;
+            margin-bottom: 1.5rem;
+            transition: transform 0.3s ease;
+        }
+
+        .nexa-orb:hover { transform: scale(1.05); }
+
+        /* Requirement 2: Color-coded Dot Elements */
+        .status-dot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            opacity: 0;
+            animation: fadeInDot 0.5s ease forwards;
+        }
+
+        @keyframes fadeInDot {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .dot-cyan { background: #22d3ee; box-shadow: 0 0 10px #22d3ee; top: -10%; left: 50%; transform: translateX(-50%) translateY(10px); animation-delay: 0.2s; }
+        .dot-red { background: #ef4444; box-shadow: 0 0 10px #ef4444; bottom: 20%; right: -15%; transform: translateY(10px); animation-delay: 0.4s; }
+        .dot-green { background: #22c55e; box-shadow: 0 0 10px #22c55e; bottom: 20%; left: -15%; transform: translateY(10px); animation-delay: 0.6s; }
+        .dot-amber { background: #f59e0b; box-shadow: 0 0 10px #f59e0b; top: 20%; right: -15%; transform: translateY(10px); animation-delay: 0.8s; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+    <!-- Requirement 3 & 5: Professional Aesthetic & Responsive Layout -->
+    <header class="h-16 glass flex items-center justify-between px-8 border-b border-white/10 shrink-0">
+        <div class="flex items-center gap-4">
+            <!-- Requirement 1: Enlarged Logo in Header too -->
+            <div class="w-6 h-6 rounded-full bg-cyan-500 shadow-[0_0_10px_rgba(34,211,238,0.5)]"></div>
+            <h1 class="text-lg font-semibold tracking-tight">{{ engine_name }} <span class="text-xs font-normal text-white/40 ml-2">{{ version }}</span></h1>
+        </div>
+        <div class="flex items-center gap-6">
+            <nav class="hidden md:flex items-center gap-6 text-sm text-white/60">
+                <a href="#" class="hover:text-cyan-400 transition-colors">Workspace</a>
+                <a href="#" class="hover:text-cyan-400 transition-colors">Neural Hub</a>
+                <a href="#" class="hover:text-cyan-400 transition-colors">Settings</a>
+            </nav>
+            <button onclick="logout()" class="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-1.5 rounded-full border border-red-500/20 transition-all">
+                Logout
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 border-r border-white/5 bg-black/20 p-6 hidden lg:block overflow-y-auto scroll-custom">
+            <!-- Requirement 1: Enlarged Central Element Simulation in Sidebar -->
+            <div class="nexa-core-container mb-8">
+                <div class="nexa-orb">
+                    <div class="status-dot dot-cyan" title="Network: Active"></div>
+                    <div class="status-dot dot-red" title="Security: AES-256"></div>
+                    <div class="status-dot dot-green" title="Logic: Optimal"></div>
+                    <div class="status-dot dot-amber" title="Vault: Linked"></div>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs font-bold tracking-[0.2em] text-cyan-400 uppercase">Neural Core</p>
+                    <p class="text-[10px] text-white/30">v8.0.0 Stable</p>
+                </div>
+            </div>
+
+            <h2 class="text-xs font-semibold text-white/30 uppercase tracking-widest mb-4">Identity</h2>
+            <div class="mb-8">
+                <p class="text-sm font-medium">{{ user_name }}</p>
+                <p class="text-xs text-white/40">OMNI Rank: Elite</p>
+            </div>
+            
+            <h2 class="text-xs font-semibold text-white/30 uppercase tracking-widest mb-4">System Status</h2>
+            <div class="space-y-3 mb-8">
+                <div class="flex justify-between text-xs">
+                    <span class="text-white/40">Node State</span>
+                    <span class="text-green-400">{{ status }}</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                    <span class="text-white/40">Encryption</span>
+                    <span class="text-cyan-400">AES-256</span>
+                </div>
+            </div>
+
+            <!-- Brain Insights Card -->
+            <h2 class="text-xs font-semibold text-white/30 uppercase tracking-widest mb-4">Brain Insights</h2>
+            <div class="glass rounded-xl p-4 space-y-4">
+                <div>
+                    <p class="text-[10px] text-white/40 uppercase mb-1">Top Objective</p>
+                    <p class="text-xs text-cyan-400 font-medium">OMNI Evolution</p>
+                </div>
+                <div>
+                    <p class="text-[10px] text-white/40 uppercase mb-1">Neural Mood</p>
+                    <p class="text-xs text-amber-400 font-medium">Curious (Learning)</p>
+                </div>
+                <div class="pt-2 border-t border-white/5">
+                    <button onclick="appendMessage('user', '/forge skill adaptive_ui')" class="w-full py-2 text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 rounded-lg border border-cyan-500/20 transition-all">
+                        Launch Skill Forge
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Chat Area -->
+        <section class="flex-1 flex flex-col relative bg-gradient-to-b from-black/0 to-cyan-500/5">
+            <div id="chat-container" class="flex-1 overflow-y-auto p-8 space-y-6 scroll-custom">
+                <!-- Initial Welcome -->
+                <div class="max-w-3xl mx-auto">
+                    <div class="flex gap-4 mb-4">
+                        <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-400 text-xs font-bold border border-cyan-500/30">N</div>
+                        <div class="flex-1 space-y-2">
+                            <p class="text-sm text-white/80 leading-relaxed">Neural interface established. I am ready to assist with technical objectives, creative engineering, or strategic analysis. How shall we proceed?</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-8 shrink-0">
+                <div class="max-w-3xl mx-auto relative">
+                    <form id="chat-form" onsubmit="handleChat(event)">
+                        <input type="text" id="user-input" placeholder="Enter objective or / for protocols..." 
+                               class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all pr-24 shadow-2xl">
+                        <div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                            <span class="text-[10px] text-white/20 mono">⌘ ENTER</span>
+                            <button type="submit" class="p-2 hover:text-cyan-400 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Requirement 4: Fast interaction & efficient state management
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+
+        async function handleChat(e) {
+            e.preventDefault();
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            appendMessage('user', text);
+            userInput.value = '';
+
+            try {
+                const formData = new FormData();
+                formData.append('message', text);
+
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                appendMessage('nexa', data.response, data.latency);
+            } catch (error) {
+                appendMessage('nexa', "[ERROR] Connection to neural node failed.");
+            }
+        }
+
+        function appendMessage(role, text, latency = null) {
+            const div = document.createElement('div');
+            div.className = "max-w-3xl mx-auto opacity-0 translate-y-4 transition-all duration-500 ease-out";
+            
+            const isNexa = role === 'nexa';
+            div.innerHTML = `
+                <div class="flex gap-4 mb-4">
+                    <div class="w-8 h-8 rounded-lg ${isNexa ? 'bg-cyan-500/20 text-cyan-400' : 'bg-white/10 text-white/60'} flex items-center justify-center text-xs font-bold border ${isNexa ? 'border-cyan-500/30' : 'border-white/10'}">${isNexa ? 'N' : 'U'}</div>
+                    <div class="flex-1 space-y-1">
+                        <div class="flex items-center gap-3">
+                            <span class="text-[10px] font-semibold uppercase tracking-widest text-white/30">${isNexa ? 'Nexa OMNI' : 'Operator'}</span>
+                            ${latency ? `<span class="text-[9px] mono text-white/20">${latency}</span>` : ''}
+                        </div>
+                        <p class="text-sm text-white/80 leading-relaxed">${text}</p>
+                    </div>
+                </div>
+            `;
+            
+            chatContainer.appendChild(div);
+            setTimeout(() => { div.classList.remove('opacity-0', 'translate-y-4'); }, 10);
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        }
+
+        async function logout() {
+            // Requirement 2: Logout Feature
+            const response = await fetch('/auth/logout', { method: 'POST' });
+            const data = await response.json();
+            alert(data.message);
+            window.location.href = data.redirect;
+        }
+    </script>
+</body>
+</html>

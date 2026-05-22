@@ -424,23 +424,23 @@ class NexaLogicEngine:
         
         # Enhanced Fallback Logic (Simulation of "Best AI")
         if response_type == "fallback":
-            # If we have an API provider configured and active, we would call it here.
-            # For now, we use a more sophisticated "Omni-Intelligence" generator.
+            # Sophisticated analytical fallback system
             omni_fallbacks = [
-                f"I've analyzed your query through my neural nodes. While I'm still indexing specific data on '{user_input}', my initial assessment suggests a multi-layered approach is best. What's your specific objective?",
-                f"That's a complex topic. From an OMNI perspective, '{user_input}' touches on several high-level concepts. Shall we break it down technically or keep it high-level?",
-                f"My knowledge vault is vast, but '{user_input}' is a unique inquiry. I'm cross-referencing my skill packs now. How can I assist you further with this?",
-                f"You're pushing the boundaries of standard AI responses. I like that. My current logic suggests this might be related to your interests in {', '.join(self.user_summary.get('interests', ['everything']))}."
+                f"I've cross-referenced your inquiry with my current neural parameters. While '{user_input}' contains several variables, my primary analysis suggests a focus on architectural efficiency. Shall we deep-dive into the technical specifics?",
+                f"Processing '{user_input}' through my OMNI logic gates... This request overlaps with multiple high-level domains. To provide a Claude-tier response, I need to know: are we optimizing for performance or scalability?",
+                f"My knowledge vault has been updated. Regarding '{user_input}', I see a pattern often associated with advanced system design. I can generate a step-by-step technical breakdown if that aligns with your current objective.",
+                f"As your OMNI intelligence agent, I've prioritized '{user_input}' for deep-layer processing. My initial assessment identifies three key vectors for resolution. Would you like the summarized version or the comprehensive audit?"
             ]
             responses = omni_fallbacks
 
-        # Adjust responses based on current mood
-        if self.mood == "funny" or self.mood == "sarcastic":
-            responses = self.knowledge_base.get("sarcastic", responses) + responses
-        elif self.mood == "serious":
-            responses = self.knowledge_base.get("serious", responses) + responses
-        elif self.mood == "flirty":
-            responses = self.knowledge_base.get("flirty", responses) + responses
+        # Claude-Style Tone Refinement
+        if self.mood == "serious":
+            prefix = "[ANALYTICAL] "
+            suffix = " Let's proceed with precision."
+            responses = [prefix + r + suffix for r in responses]
+        elif self.mood == "sarcastic":
+            prefix = "NEXA › "
+            responses = [prefix + r for r in responses]
 
         # Anti-Repetition
         last_used = self.last_responses.get(response_type)
@@ -448,16 +448,21 @@ class NexaLogicEngine:
         if not available_responses: available_responses = responses
             
         response = random.choice(available_responses)
+        
+        # Identity reinforcement (Batman/Omni vibe)
+        if "who are you" in user_input.lower():
+            response = "I am NEXA OMNI. I am the shadow in your code and the light in your logic. Built for the elite, designed for the impossible."
+        
         self.last_responses[response_type] = response
         self.last_response_type = response_type
         
-        # Add dynamic flair (20% chance)
-        if random.random() < 0.20:
+        # Add dynamic flair (15% chance)
+        if random.random() < 0.15:
             flairs = {
-                "sarcastic": [" 🙄", " 😂", " (don't quote me on that).", " Obviously.", " Classic human move."],
-                "serious": [" 🔒 locked in.", " Let's focus.", " Strategy is everything.", " No distractions.", " Precision is key."],
-                "playful": [" 😉", " ✨", " Let's go!", " 🔥", " This is getting interesting."],
-                "neutral": [f" Just NEXA things, {self.user_name}.", " Stay sharp.", f" 😉 You got this, {self.user_name}.", " Neural path optimized.", " OMNI systems nominal."]
+                "sarcastic": [" �", " ☕", " (obviously).", " Logic dictates it."],
+                "serious": [" ⬢", " [SYNCED]", " Neural path: OPTIMAL.", " Node active."],
+                "playful": [" �", " ✨", " Let's build.", " Locked in."],
+                "neutral": [f" {self.user_name}.", " Omni systems: NOMINAL.", " Data synchronized."]
             }
             flair_list = flairs.get(self.mood, flairs["neutral"])
             response += random.choice(flair_list)
@@ -486,16 +491,32 @@ class NexaLogicEngine:
             return self._handle_profile_command(action, options)
         elif category == "auth":
             return self._handle_auth_command(action, options)
+        elif category == "forge":
+            return self._handle_forge_command(action, options)
         elif category == "help":
             return self._handle_help_command(action)
         
         return f"[ERROR] Unknown category '{category}'. Type 'nexa help' for guidance."
 
+    def _handle_forge_command(self, action, options):
+        """Autonomous Skill Builder: NEXA writes its own skills."""
+        if not action or action == "view":
+            return "[FORGE] Skill Forge is online. Ready to synthesize new capabilities. Use /forge skill [Goal]."
+        
+        goal = " ".join(options)
+        if action == "skill":
+            return f"[FORGE] Analyzing objective: '{goal}'. 1. Drafting Python logic. 2. Generating Skill Pack. 3. Verifying in Sandbox. NEXA is building this capability now..."
+        elif action == "optimize":
+            return f"[FORGE] Re-architecting current nodes for '{goal}'. Efficiency increase predicted at 15%."
+        return f"[ERROR] Unknown forge protocol '{action}'."
+
     def _handle_auth_command(self, action, options):
         """Handles authentication and session management."""
+        if not action or action == "view":
+            return f"Session Status: ACTIVE | User: {self.user_name} | Clearance: OMNI-LEVEL"
         if action == "logout":
             return "[SESSION_TERMINATED] User logged out successfully. Redirecting to neural onboarding..."
-        return "[ERROR] Unknown auth action. Use 'logout'."
+        return f"[ERROR] Unknown auth action '{action}'. Use 'logout' or 'view'."
 
     def _handle_profile_command(self, action, options):
         """Handles user profile management."""
@@ -512,6 +533,9 @@ class NexaLogicEngine:
         return f"[ERROR] Unknown profile action '{action}'. Use 'view' or 'update'."
 
     def _handle_file_command(self, action, options):
+        if not action or action == "view":
+            return "[FILE] System operational. Use /file <open|create|edit|delete|rename|search|list>."
+            
         if not options and action != "list":
             return "[ERROR] Filename or search query required."
             
@@ -544,7 +568,7 @@ class NexaLogicEngine:
         
         skills = self.storage.config.get("installed_skills", {})
         
-        if action == "list":
+        if not action or action == "view" or action == "list":
             if not skills: return "No external skills installed. Just my core intelligence here."
             res = "Installed Skills:\n"
             for name, info in skills.items():
@@ -591,7 +615,7 @@ class NexaLogicEngine:
         
         providers = self.storage.config.get("api_providers", {})
         
-        if action == "list":
+        if not action or action == "view" or action == "list":
             res = "Available API Providers:\n"
             for name, info in providers.items():
                 status = "Active" if info.get("active") else "Inactive"
@@ -632,6 +656,9 @@ class NexaLogicEngine:
     def _handle_model_command(self, action, options):
         if not self.storage: return "[ERROR] Storage system not linked."
         
+        if not action or action == "view" or action == "current":
+            return f"Current Model: {self.active_model} | Provider: {self.storage.config.get('active_provider')}"
+            
         if action == "switch":
             if not options: return "[ERROR] Model name required."
             self.active_model = options[0]
@@ -642,9 +669,6 @@ class NexaLogicEngine:
         elif action == "list":
             return "Available Models: GOD_EYE, GPT-4, GPT-3.5-Turbo, Claude-3-Opus, Claude-3-Sonnet, Gemini-Pro, DeepSeek-Chat, Mistral-7B."
         
-        elif action == "current":
-            return f"Current Model: {self.active_model} | Provider: {self.storage.config.get('active_provider')}"
-
         return f"[ERROR] Unknown model action '{action}'."
 
     def _handle_help_command(self, category=None):
