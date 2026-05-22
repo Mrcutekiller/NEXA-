@@ -911,8 +911,6 @@ class NexaLogicEngine:
         elif action == "update":
             if not options: return "[ERROR] Skill name required."
             return f"[SYSTEM] Checking for updates for {options[0]}... Already at latest version."
-            
-        return f"[ERROR] Unknown skill action '{action}'."
 
     def _handle_api_command(self, action, options):
         if not self.storage: return "[ERROR] Storage system not linked."
@@ -924,7 +922,8 @@ class NexaLogicEngine:
             res = f"Active API Provider: {active_p}\n\nAvailable API Providers:\n"
             for name, info in providers.items():
                 status = "Active" if name == active_p else "Inactive"
-                res += f"- {name}: {status} ({info.get('model', 'N/A')})\n"
+                custom_url = f" | Url: {info['url']}" if info.get("url") else ""
+                res += f"- {name}: {status} ({info.get('model', 'N/A')}{custom_url})\n"
             return res
         
         elif action == "add":
@@ -970,11 +969,40 @@ class NexaLogicEngine:
                 v["active"] = (k == name)
             self.storage.save()
             return f"[SUCCESS] Switched active API provider to {name}."
- 
+            
+        elif action == "model":
+            if not options: return "[ERROR] Provider name required (e.g., openai)."
+            name = options[0].upper()
+            if name not in providers:
+                return f"[ERROR] Provider {name} not found."
+            if len(options) < 2:
+                current_model = providers[name].get("model", "N/A")
+                return f"[INFO] Current model for {name} is {current_model}. To change it, use: 'nexa api model {name.lower()} <model_name>'"
+            model_name = options[1]
+            providers[name]["model"] = model_name
+            self.storage.save()
+            return f"[SUCCESS] Model for {name} updated to {model_name}."
+
+        elif action in ["url", "endpoint"]:
+            if not options: return "[ERROR] Provider name required (e.g., openai)."
+            name = options[0].upper()
+            if name not in providers:
+                return f"[ERROR] Provider {name} not found."
+            if len(options) < 2:
+                current_url = providers[name].get("url", "default")
+                return f"[INFO] Current endpoint URL for {name} is {current_url}. To change it, use: 'nexa api url {name.lower()} <url>'"
+            custom_url = options[1]
+            if custom_url.lower() == "default":
+                providers[name].pop("url", None)
+            else:
+                providers[name]["url"] = custom_url
+            self.storage.save()
+            return f"[SUCCESS] Endpoint URL for {name} updated to {custom_url}."
+  
         elif action == "test":
             name = options[0].upper() if options else self.storage.config.get("active_provider")
             return f"[SYSTEM] Testing connection to {name}... Success. Latency: 42ms."
- 
+  
         return f"[ERROR] Unknown API action '{action}'."
 
     def _query_external_api(self, provider: str, prompt: str) -> Optional[str]:
@@ -990,7 +1018,7 @@ class NexaLogicEngine:
         try:
             if provider == "OPENAI":
                 model = info.get("model", "gpt-4")
-                url = "https://api.openai.com/v1/chat/completions"
+                url = info.get("url") or "https://api.openai.com/v1/chat/completions"
                 headers = {
                     "Authorization": f"Bearer {key}",
                     "Content-Type": "application/json"
@@ -1008,7 +1036,7 @@ class NexaLogicEngine:
             
             elif provider == "ANTHROPIC":
                 model = info.get("model", "claude-3-sonnet")
-                url = "https://api.anthropic.com/v1/messages"
+                url = info.get("url") or "https://api.anthropic.com/v1/messages"
                 headers = {
                     "x-api-key": key,
                     "anthropic-version": "2023-06-01",
@@ -1027,7 +1055,7 @@ class NexaLogicEngine:
             
             elif provider == "GEMINI":
                 model = info.get("model", "gemini-pro")
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+                url = info.get("url") or f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
                 headers = {
                     "Content-Type": "application/json"
                 }
@@ -1039,6 +1067,25 @@ class NexaLogicEngine:
                     return resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
                 else:
                     self.storage.log_event("API_ERROR", f"Gemini returned status {resp.status_code}: {resp.text}")
+            
+            else:
+                # Custom OpenAI-compatible provider
+                model = info.get("model", "default")
+                url = info.get("url") or f"https://api.{provider.lower()}.com/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {key}",
+                    "Content-Type": "application/json"
+                }
+                data = {
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.7
+                }
+                resp = requests.post(url, headers=headers, json=data, timeout=10)
+                if resp.status_code == 200:
+                    return resp.json()["choices"][0]["message"]["content"].strip()
+                else:
+                    self.storage.log_event("API_ERROR", f"{provider} returned status {resp.status_code}: {resp.text}")
         except Exception as e:
             self.storage.log_event("API_EXCEPTION", f"Failed to query {provider}: {str(e)}")
             

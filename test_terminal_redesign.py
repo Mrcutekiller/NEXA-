@@ -731,9 +731,21 @@ class TestNewV4Upgrades(unittest.TestCase):
             self.assertIn("[SUCCESS] API Key for OPENAI saved and activated", res)
             self.assertEqual(engine.storage.config.get("active_provider"), "OPENAI")
 
+            # Test updating model name
+            res = engine.handle_cli_command("nexa api model openai gpt-4o")
+            self.assertIn("[SUCCESS] Model for OPENAI updated to gpt-4o", res)
+            self.assertEqual(engine.storage.config["api_providers"]["OPENAI"]["model"], "gpt-4o")
+
+            # Test updating url/endpoint
+            res = engine.handle_cli_command("nexa api url openai https://custom.openai.com/v1")
+            self.assertIn("[SUCCESS] Endpoint URL for OPENAI updated to https://custom.openai.com/v1", res)
+            self.assertEqual(engine.storage.config["api_providers"]["OPENAI"]["url"], "https://custom.openai.com/v1")
+
             # Check view
             res = engine.handle_cli_command("nexa api view")
             self.assertIn("Active API Provider: OPENAI", res)
+            self.assertIn("gpt-4o", res)
+            self.assertIn("https://custom.openai.com/v1", res)
 
             # Switch back to local
             res = engine.handle_cli_command("nexa api switch local")
