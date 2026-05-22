@@ -709,6 +709,125 @@ class TestNewV4Upgrades(unittest.TestCase):
             if os.path.exists(mem_path):
                 os.remove(mem_path)
 
+    def test_api_command_switching(self):
+        from nexa_engine import NexaLogicEngine
+        from nexa_storage import NexaStorage
+        import tempfile
+        import os
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_db:
+            db_path = tmp_db.name
+
+        try:
+            storage = NexaStorage(db_path=db_path)
+            engine = NexaLogicEngine(storage=storage)
+
+            # Test switch to external provider without key -> error
+            res = engine.handle_cli_command("nexa api switch openai")
+            self.assertIn("[ERROR] Provider OPENAI does not have an API key configured", res)
+
+            # Add key and activate/switch
+            res = engine.handle_cli_command("nexa api add openai my_secret_key")
+            self.assertIn("[SUCCESS] API Key for OPENAI saved and activated", res)
+            self.assertEqual(engine.storage.config.get("active_provider"), "OPENAI")
+
+            # Check view
+            res = engine.handle_cli_command("nexa api view")
+            self.assertIn("Active API Provider: OPENAI", res)
+
+            # Switch back to local
+            res = engine.handle_cli_command("nexa api switch local")
+            self.assertIn("[SUCCESS] Switched active API provider to LOCAL", res)
+            self.assertEqual(engine.storage.config.get("active_provider"), "LOCAL")
+
+            # Remove key
+            res = engine.handle_cli_command("nexa api remove openai")
+            self.assertIn("[SUCCESS] OPENAI API removed/deactivated", res)
+            providers = engine.storage.config.get("api_providers", {})
+            self.assertIsNone(providers["OPENAI"]["key"])
+        finally:
+            if os.path.exists(db_path):
+                os.remove(db_path)
+
+    def test_automated_browser_search_fallback(self):
+        from nexa_engine import NexaLogicEngine
+        from nexa_storage import NexaStorage
+        import tempfile
+        import os
+        from unittest.mock import patch
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_db:
+            db_path = tmp_db.name
+
+        try:
+            storage = NexaStorage(db_path=db_path)
+            engine = NexaLogicEngine(storage=storage)
+            
+            # Make sure provider is LOCAL
+            engine.storage.config["active_provider"] = "LOCAL"
+            engine.storage.save()
+
+            # Mock generator to fail, and patch webbrowser.open
+            with patch.object(engine.generator, "generate", return_value=None), \
+                 patch("webbrowser.open") as mock_open:
+                
+                response = engine.generate_response("what is the chemical composition of stars?")
+                
+                self.assertIn("automatically launched a web search", response)
+                mock_open.assert_called_once()
+                self.assertIn("chemical composition of stars", mock_open.call_args[0][0])
+        finally:
+            if os.path.exists(db_path):
+                os.remove(db_path)
+
+    def test_external_api_query_routing(self):
+        from nexa_engine import NexaLogicEngine
+        from nexa_storage import NexaStorage
+        import tempfile
+        import os
+        from unittest.mock import patch, MagicMock
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_db:
+            db_path = tmp_db.name
+
+        try:
+            storage = NexaStorage(db_path=db_path)
+            engine = NexaLogicEngine(storage=storage)
+            
+            # Configure OpenAI key and active provider
+            engine.storage.config["api_providers"]["OPENAI"]["key"] = "mock_key"
+            engine.storage.config["active_provider"] = "OPENAI"
+            engine.storage.save()
+
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "choices": [{
+                    "message": {
+                        "content": "This is mock OpenAI response."
+                    }
+                }]
+            }
+
+            with patch("requests.post", return_value=mock_response) as mock_post:
+                response = engine.generate_response("write a function in python")
+                self.assertEqual(response, "This is mock OpenAI response.")
+                mock_post.assert_called_once()
+                
+            # Test when request fails (falls back to local generator / web search)
+            mock_response.status_code = 500
+            mock_response.text = "Internal Server Error"
+            with patch("requests.post", return_value=mock_response), \
+                 patch.object(engine.generator, "generate", return_value=None), \
+                 patch("webbrowser.open") as mock_open:
+                
+                response = engine.generate_response("explain quantum computing fallback query")
+                self.assertIn("I couldn't get a response from OPENAI", response)
+                mock_open.assert_called_once()
+        finally:
+            if os.path.exists(db_path):
+                os.remove(db_path)
+
 
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":

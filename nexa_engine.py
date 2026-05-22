@@ -553,7 +553,11 @@ class NexaLogicEngine:
         if response_type == "skill_web_search":
             query_match = re.search(r'(?:search|google|lookup)\s+(?:for\s+)?(.+)', user_input, re.IGNORECASE)
             query = query_match.group(1) if query_match else user_input
-            return self.skills.web_search(query)
+            active_provider = "LOCAL"
+            if self.storage:
+                active_provider = self.storage.config.get("active_provider", "LOCAL")
+            return self._handle_search_augmented_query(query, active_provider)
+
 
         if response_type == "skill_open_app":
             app_match = re.search(r'(?:open|launch|start)\s+(.+)', user_input, re.IGNORECASE)
@@ -612,8 +616,24 @@ class NexaLogicEngine:
             "space", "business", "health", "art", "fallback"
         }
         if response_type in generator_compatible:
-            gen_model = self._get_generation_model_key(user_input)
-            gen_response = self.generator.generate(user_input, gen_model)
+            active_provider = "LOCAL"
+            if self.storage:
+                active_provider = self.storage.config.get("active_provider", "LOCAL")
+            
+            if response_type == "fallback":
+                res = self._handle_search_augmented_query(user_input, active_provider)
+                self.last_responses[response_type] = res
+                self.last_response_type = response_type
+                return res
+
+            gen_response = None
+            if active_provider != "LOCAL":
+                gen_response = self._query_external_api(active_provider, user_input)
+            
+            if not gen_response:
+                gen_model = self._get_generation_model_key(user_input)
+                gen_response = self.generator.generate(user_input, gen_model)
+                
             if gen_response:
                 self.last_responses[response_type] = gen_response
                 self.last_response_type = response_type
@@ -624,14 +644,15 @@ class NexaLogicEngine:
         
         # Enhanced Fallback Logic (Simulation of "Best AI")
         if response_type == "fallback":
-            # Sophisticated analytical fallback system
-            omni_fallbacks = [
-                f"I've cross-referenced your inquiry with my current neural parameters. While '{user_input}' contains several variables, my primary analysis suggests a focus on architectural efficiency. Shall we deep-dive into the technical specifics?",
-                f"Processing '{user_input}' through my OMNI logic gates... This request overlaps with multiple high-level domains. To provide a Claude-tier response, I need to know: are we optimizing for performance or scalability?",
-                f"My knowledge vault has been updated. Regarding '{user_input}', I see a pattern often associated with advanced system design. I can generate a step-by-step technical breakdown if that aligns with your current objective.",
-                f"As your OMNI intelligence agent, I've prioritized '{user_input}' for deep-layer processing. My initial assessment identifies three key vectors for resolution. Would you like the summarized version or the comprehensive audit?"
-            ]
-            responses = omni_fallbacks
+            active_provider = "LOCAL"
+            if self.storage:
+                active_provider = self.storage.config.get("active_provider", "LOCAL")
+            
+            res = self._handle_search_augmented_query(user_input, active_provider)
+            self.last_responses[response_type] = res
+            self.last_response_type = response_type
+            return res
+
 
         # Claude-Style Tone Refinement
         if self.mood == "serious":
@@ -898,10 +919,11 @@ class NexaLogicEngine:
         
         providers = self.storage.config.get("api_providers", {})
         
-        if not action or action == "view" or action == "list":
-            res = "Available API Providers:\n"
+        if not action or action in ["view", "list"]:
+            active_p = self.storage.config.get("active_provider", "LOCAL")
+            res = f"Active API Provider: {active_p}\n\nAvailable API Providers:\n"
             for name, info in providers.items():
-                status = "Active" if info.get("active") else "Inactive"
+                status = "Active" if name == active_p else "Inactive"
                 res += f"- {name}: {status} ({info.get('model', 'N/A')})\n"
             return res
         
@@ -914,25 +936,167 @@ class NexaLogicEngine:
             res = f"[NEXA] Setting up {name} API...\n"
             if len(options) > 1:
                 providers[name]["key"] = options[1]
-                providers[name]["active"] = True
+                self.storage.config["active_provider"] = name
+                for k, v in providers.items():
+                    v["active"] = (k == name)
                 self.storage.save()
                 return res + f"[SUCCESS] API Key for {name} saved and activated."
             return res + f"[INFO] Please provide the API key: 'nexa api add {name} YOUR_KEY'"
+            
         elif action == "remove":
             if not options: return "[ERROR] Provider name required."
             name = options[0].upper()
             if name in providers:
-                providers[name]["active"] = False
                 providers[name]["key"] = None
+                providers[name]["active"] = False
+                if self.storage.config.get("active_provider") == name:
+                    self.storage.config["active_provider"] = "LOCAL"
+                    providers["LOCAL"]["active"] = True
                 self.storage.save()
                 return f"[SUCCESS] {name} API removed/deactivated."
             return f"[ERROR] Provider {name} not found."
+            
+        elif action == "switch":
+            if not options: return "[ERROR] Provider name required."
+            name = options[0].upper()
+            if name not in providers:
+                return f"[ERROR] Provider {name} not found. Available: {', '.join(providers.keys())}"
+            
+            if providers[name].get("type") == "external" and not providers[name].get("key"):
+                return f"[ERROR] Provider {name} does not have an API key configured. Use 'nexa api add {name} YOUR_KEY' first."
+            
+            self.storage.config["active_provider"] = name
+            for k, v in providers.items():
+                v["active"] = (k == name)
+            self.storage.save()
+            return f"[SUCCESS] Switched active API provider to {name}."
  
         elif action == "test":
             name = options[0].upper() if options else self.storage.config.get("active_provider")
             return f"[SYSTEM] Testing connection to {name}... Success. Latency: 42ms."
  
         return f"[ERROR] Unknown API action '{action}'."
+
+    def _query_external_api(self, provider: str, prompt: str) -> Optional[str]:
+        if not self.storage:
+            return None
+        providers = self.storage.config.get("api_providers", {})
+        info = providers.get(provider, {})
+        key = info.get("key")
+        if not key:
+            return None
+
+        import requests
+        try:
+            if provider == "OPENAI":
+                model = info.get("model", "gpt-4")
+                url = "https://api.openai.com/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {key}",
+                    "Content-Type": "application/json"
+                }
+                data = {
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.7
+                }
+                resp = requests.post(url, headers=headers, json=data, timeout=10)
+                if resp.status_code == 200:
+                    return resp.json()["choices"][0]["message"]["content"].strip()
+                else:
+                    self.storage.log_event("API_ERROR", f"OpenAI returned status {resp.status_code}: {resp.text}")
+            
+            elif provider == "ANTHROPIC":
+                model = info.get("model", "claude-3-sonnet")
+                url = "https://api.anthropic.com/v1/messages"
+                headers = {
+                    "x-api-key": key,
+                    "anthropic-version": "2023-06-01",
+                    "Content-Type": "application/json"
+                }
+                data = {
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 1024
+                }
+                resp = requests.post(url, headers=headers, json=data, timeout=10)
+                if resp.status_code == 200:
+                    return resp.json()["content"][0]["text"].strip()
+                else:
+                    self.storage.log_event("API_ERROR", f"Anthropic returned status {resp.status_code}: {resp.text}")
+            
+            elif provider == "GEMINI":
+                model = info.get("model", "gemini-pro")
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+                headers = {
+                    "Content-Type": "application/json"
+                }
+                data = {
+                    "contents": [{"parts": [{"text": prompt}]}]
+                }
+                resp = requests.post(url, headers=headers, json=data, timeout=10)
+                if resp.status_code == 200:
+                    return resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                else:
+                    self.storage.log_event("API_ERROR", f"Gemini returned status {resp.status_code}: {resp.text}")
+        except Exception as e:
+            self.storage.log_event("API_EXCEPTION", f"Failed to query {provider}: {str(e)}")
+            
+        return None
+
+    def _handle_search_augmented_query(self, user_input: str, active_provider: str) -> str:
+        # 1. Open browser search
+        search_msg = self.skills.web_search(user_input)
+        
+        # 2. Get programmatic snippets
+        snippets = self.skills.search_web_programmatic(user_input)
+        
+        # 3. Handle snippets if found
+        if snippets:
+            snippets_text = ""
+            for i, s in enumerate(snippets, 1):
+                snippets_text += f"[{i}] Title: {s['title']}\n    Snippet: {s['snippet']}\n    URL: {s['url']}\n\n"
+            
+            if active_provider != "LOCAL":
+                prompt = (
+                    f"You are NEXA OMNI, an advanced AI companion.\n"
+                    f"Here is some web search context related to the user's query: \"{user_input}\"\n\n"
+                    f"Search Results:\n{snippets_text}\n"
+                    f"Please answer the user's question \"{user_input}\" based on the search results. "
+                    f"Keep your response concise, elegant, clear, and professional."
+                )
+                resp = self._query_external_api(active_provider, prompt)
+                if resp:
+                    return f"NEXA › [SOURCE: LIVE SEARCH & {active_provider}] I've opened Google Search in your browser.\n\n{resp}"
+            
+            # Fallback presentation when external API fails or is LOCAL
+            body = ""
+            for i, s in enumerate(snippets[:4], 1):
+                body += f"● {s['title']}\n  URL: {s['url']}\n  Summary: {s['snippet']}\n\n"
+            
+            if active_provider != "LOCAL":
+                header = f"I couldn't get a response from {active_provider}. However, I've automatically launched a web search for you and programmatically retrieved these results:\n\n"
+            else:
+                header = "NEXA › [SOURCE: LIVE SEARCH] I've opened Google Search in your browser. Here is what I retrieved from the web:\n\n"
+                
+            tip = "(Tip: Add your ChatGPT or Gemini key using `/api add openai <key>` or `/api add gemini <key>` and `/api switch <provider>` to get automated summaries!)"
+            return f"{header}{body}{tip}"
+            
+        else:
+            # Fallback when no snippets are found
+            if active_provider != "LOCAL":
+                resp = self._query_external_api(active_provider, user_input)
+                if resp:
+                    return f"NEXA › [SOURCE: {active_provider}] (No web snippets found)\n\n{resp}"
+                return f"I couldn't get a response from {active_provider}. I've automatically launched a web search for you: {search_msg}"
+            
+            gen_model = self._get_generation_model_key(user_input)
+            gen_resp = self.generator.generate(user_input, gen_model)
+            if gen_resp:
+                return gen_resp
+                
+            return f"I don't have that knowledge locally. I've automatically launched a web search to find this for you: {search_msg}"
+
 
     def _handle_model_command(self, action, options):
         if not self.storage: return "[ERROR] Storage system not linked."

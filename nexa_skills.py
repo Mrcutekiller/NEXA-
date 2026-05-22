@@ -187,3 +187,49 @@ class NexaSkills:
             return res
         except Exception as e:
             return f"[ERROR] Directory access failed: {str(e)}"
+
+    def search_web_programmatic(self, query):
+        """Programmatically queries DuckDuckGo html search and returns a list of dictionaries with title, snippet, and url."""
+        import requests
+        from bs4 import BeautifulSoup
+        import urllib.parse
+        
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+        }
+        url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
+        try:
+            resp = requests.get(url, headers=headers, timeout=6)
+            if resp.status_code != 200:
+                return []
+            
+            soup = BeautifulSoup(resp.text, "html.parser")
+            divs = soup.find_all("div", class_="result")
+            results = []
+            for div in divs[:5]:
+                title_a = div.find("a", class_="result__url")
+                snippet_a = div.find("a", class_="result__snippet")
+                if title_a and snippet_a:
+                    # Parse the URL cleanly (remove DDG redirects if possible)
+                    raw_url = title_a.get("href", "")
+                    clean_url = raw_url
+                    if "//duckduckgo.com/l/?uddg=" in raw_url:
+                        try:
+                            parsed_url = urllib.parse.urlparse(raw_url)
+                            query_params = urllib.parse.parse_qs(parsed_url.query)
+                            if "uddg" in query_params:
+                                clean_url = query_params["uddg"][0]
+                        except Exception:
+                            pass
+                    elif raw_url.startswith("//"):
+                        clean_url = "https:" + raw_url
+                    
+                    results.append({
+                        "title": title_a.text.strip(),
+                        "snippet": snippet_a.text.strip(),
+                        "url": clean_url
+                    })
+            return results
+        except Exception:
+            return []
+
