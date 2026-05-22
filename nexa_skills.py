@@ -248,3 +248,34 @@ class NexaSkills:
         except Exception:
             return []
 
+    def fetch_webpage_content(self, url):
+        """Fetches the webpage content, parses it, and returns the main text."""
+        try:
+            if not url.startswith(("http://", "https://")):
+                return ""
+            resp = requests.get(url, headers=self.headers, timeout=5)
+            if resp.status_code != 200:
+                return ""
+            
+            content_type = resp.headers.get("Content-Type", "").lower()
+            if "text/html" not in content_type:
+                return ""
+                
+            soup = BeautifulSoup(resp.text, "html.parser")
+            
+            # Remove scripts, styles, header, footer, etc.
+            for s in soup(["script", "style", "nav", "footer", "header", "aside"]):
+                s.decompose()
+                
+            blocks = []
+            for element in soup.find_all(["p", "h1", "h2", "h3"]):
+                text = element.get_text().strip()
+                if len(text) > 30:
+                    blocks.append(text)
+                    if len(blocks) >= 6:
+                        break
+                        
+            return "\n\n".join(blocks)
+        except Exception:
+            return ""
+

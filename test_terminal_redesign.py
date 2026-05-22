@@ -887,6 +887,51 @@ class TestNewV4Upgrades(unittest.TestCase):
             if os.path.exists(db_path):
                 os.remove(db_path)
 
+    def test_webpage_content_scraping(self):
+        from nexa_engine import NexaLogicEngine
+        from nexa_storage import NexaStorage
+        import tempfile
+        import os
+        from unittest.mock import patch, MagicMock
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_db:
+            db_path = tmp_db.name
+
+        try:
+            storage = NexaStorage(db_path=db_path)
+            engine = NexaLogicEngine(storage=storage)
+
+            # Test fetch_webpage_content with mocked request
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.headers = {"Content-Type": "text/html"}
+            mock_response.text = "<html><body><header>Skip me</header><p>This is the actual page content of the website.</p></body></html>"
+
+            with patch("requests.get", return_value=mock_response) as mock_get:
+                content = engine.skills.fetch_webpage_content("https://testpage.com/page")
+                self.assertIn("This is the actual page content of the website.", content)
+                self.assertNotIn("Skip me", content)
+                mock_get.assert_called_once_with("https://testpage.com/page", headers=engine.skills.headers, timeout=5)
+
+            # Test _handle_search_augmented_query integrates it
+            mock_snippets = [{
+                "title": "Clean Title",
+                "snippet": "Simple snippet text",
+                "url": "https://testpage.com/page"
+            }]
+
+            with patch.object(engine.skills, "search_web_programmatic", return_value=mock_snippets), \
+                 patch.object(engine.skills, "web_search"), \
+                 patch.object(engine.skills, "fetch_webpage_content", return_value="Scraped text body paragraphs info goes here. This is some extra sentence to make the scraped content longer than one hundred characters so that the threshold check passes successfully without issues."), \
+                 patch.object(engine.generator, "generate", return_value=None):
+                
+                response = engine._handle_search_augmented_query("test query", "LOCAL")
+                # Fallback presentation when generator is None includes page details:
+                self.assertIn("Scraped text body paragraphs info goes here", response)
+        finally:
+            if os.path.exists(db_path):
+                os.remove(db_path)
+
 
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":

@@ -1123,16 +1123,34 @@ class NexaLogicEngine:
         
         # 3. Handle snippets if found
         if snippets:
+            # Try to "click" the 1st link and retrieve full page context, checking 2nd link as fallback
+            first_link_content = ""
+            scraped_url = ""
+            for s in snippets[:2]:
+                url = s.get("url")
+                if url:
+                    content = self.skills.fetch_webpage_content(url)
+                    if content and len(content) > 100:
+                        first_link_content = content
+                        scraped_url = url
+                        break
+            
             snippets_text = ""
             for i, s in enumerate(snippets, 1):
                 snippets_text += f"[{i}] Title: {s['title']}\n    Snippet: {s['snippet']}\n    URL: {s['url']}\n\n"
             
+            webpage_context = ""
+            if first_link_content:
+                webpage_context = f"\nWebpage full text content retrieved from top result ({scraped_url}):\n{first_link_content}\n\n"
+                
             if active_provider != "LOCAL":
                 prompt = (
                     f"You are NEXA OMNI, an advanced AI companion.\n"
                     f"Here is some web search context related to the user's query: \"{user_input}\"\n\n"
-                    f"Search Results:\n{snippets_text}\n"
-                    f"Please answer the user's question \"{user_input}\" based on the search results. "
+                    f"Search Snippets:\n{snippets_text}\n"
+                    f"{webpage_context}"
+                    f"Please answer the user's question \"{user_input}\" based on the search results and full webpage content if available. "
+                    f"Review the facts carefully to provide a correct, valid and verified answer. "
                     f"Keep your response concise, elegant, clear, and professional. "
                     f"Synthesize the main point directly. DO NOT include any raw links, URLs, domain names, "
                     f"brackets like [1], or punctuation junk like '. /'. Answer like a helpful human assistant."
@@ -1146,13 +1164,18 @@ class NexaLogicEngine:
             gen_model = self._get_generation_model_key(user_input)
             local_prompt = (
                 f"Answer the query: '{user_input}' "
-                f"by summarizing the following search results in a clean, human-like paragraph. "
+                f"by summarizing the following search results and webpage details in a clean, human-like paragraph. "
                 f"Do not include links, URLs, citation tags, or punctuation junk:\n\n"
             )
             for s in snippets[:3]:
                 cleaned_snippet = self._clean_web_text(s['snippet'])
                 if cleaned_snippet:
                     local_prompt += f"- {cleaned_snippet}\n"
+            
+            if first_link_content:
+                cleaned_page = self._clean_web_text(first_link_content[:400])
+                if cleaned_page:
+                    local_prompt += f"- Page details: {cleaned_page}\n"
             
             gen_resp = self.generator.generate(local_prompt, gen_model)
             if gen_resp:
@@ -1171,6 +1194,11 @@ class NexaLogicEngine:
                 if snippet_text.lower() not in seen_sentences:
                     seen_sentences.add(snippet_text.lower())
                     body += f"• {snippet_text}\n\n"
+            
+            if first_link_content:
+                cleaned_page = self._clean_web_text(first_link_content[:300])
+                if cleaned_page and cleaned_page.lower() not in seen_sentences:
+                    body += f"• {cleaned_page}\n\n"
             
             if active_provider != "LOCAL":
                 header = f"I couldn't get a response from {active_provider}. However, I've automatically launched a web search in the background and retrieved these main points:\n\n"
