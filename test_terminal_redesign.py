@@ -22,9 +22,12 @@ from unittest.mock import MagicMock, patch
 # attributes (like NexaCommandCompleter.COMMAND_META) survive correctly.
 # ---------------------------------------------------------------------------
 def _stub(name: str):
+    if name in sys.modules:
+        return sys.modules[name]
     mod = types.ModuleType(name)
     sys.modules[name] = mod
     return mod
+
 
 # colorama — provide real-looking string constants
 _col = _stub("colorama")
@@ -98,6 +101,16 @@ for _mod in ["memory_manager", "nexa_engine", "nexa_storage", "nexa_skills"]:
     sys.modules[_mod].MemoryManager = MagicMock
     sys.modules[_mod].NexaLogicEngine = MagicMock
     sys.modules[_mod].NexaStorage = MagicMock
+
+# Bind submodules to their parent packages in sys.modules so Python 3.14 loader resolves imports correctly
+for _name in list(sys.modules.keys()):
+    if "." in _name:
+        _parts = _name.split(".")
+        for _i in range(1, len(_parts)):
+            _parent = ".".join(_parts[:_i])
+            _child = _parts[_i]
+            if _parent in sys.modules and hasattr(sys.modules[_parent], "__dict__"):
+                setattr(sys.modules[_parent], _child, sys.modules[".".join(_parts[:_i+1])])
 
 from main import (  # noqa: E402
     NexaCommandCompleter,
@@ -928,6 +941,91 @@ class TestNewV4Upgrades(unittest.TestCase):
                 response = engine._handle_search_augmented_query("test query", "LOCAL")
                 # Fallback presentation when generator is None includes page details:
                 self.assertIn("Scraped text body paragraphs info goes here", response)
+        finally:
+            if os.path.exists(db_path):
+                os.remove(db_path)
+
+    def test_fetch_ai_overview_google_featured_snippet(self):
+        from nexa_skills import NexaSkills
+        skills = NexaSkills()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "<html><body><span class='hgKElc'>The speed of light is 299,792 kilometers per second.</span></body></html>"
+        with patch("requests.get", return_value=mock_response):
+            overview = skills.fetch_ai_overview("speed of light")
+            self.assertEqual(overview, "The speed of light is 299,792 kilometers per second.")
+
+    def test_fetch_ai_overview_ddg_fallback(self):
+        from nexa_skills import NexaSkills
+        skills = NexaSkills()
+        google_mock = MagicMock()
+        google_mock.status_code = 403  # rate limited
+        google_mock.text = "Forbidden"
+
+        ddg_mock = MagicMock()
+        ddg_mock.status_code = 200
+        ddg_mock.json.return_value = {
+            "AbstractText": "Quantum computing is a multidisciplinary field comprising aspects of computer science, physics, and mathematics."
+        }
+
+        # Mock first requests.get for Google, second for DDG
+        def side_effect(url, *args, **kwargs):
+            if "google.com" in url:
+                return google_mock
+            return ddg_mock
+
+        with patch("requests.get", side_effect=side_effect):
+            overview = skills.fetch_ai_overview("quantum computing")
+            self.assertEqual(overview, "Quantum computing is a multidisciplinary field comprising aspects of computer science, physics, and mathematics.")
+
+    def test_search_web_programmatic_returns_dict(self):
+        from nexa_skills import NexaSkills
+        skills = NexaSkills()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = """
+        <html><body>
+            <div class='result'>
+                <a class='result__url' href='https://test.com/1'>Title 1</a>
+                <a class='result__snippet' href='https://test.com/1'>Snippet 1 description goes here.</a>
+            </div>
+        </body></html>
+        """
+        with patch("requests.get", return_value=mock_response), \
+             patch.object(skills, "fetch_ai_overview", return_value="Mocked AI Overview"):
+            data = skills.search_web_programmatic("test query")
+            self.assertIsInstance(data, dict)
+            self.assertEqual(data["ai_overview"], "Mocked AI Overview")
+            self.assertEqual(len(data["results"]), 1)
+            self.assertEqual(data["results"][0]["title"], "Title 1")
+            self.assertEqual(data["results"][0]["snippet"], "Snippet 1 description goes here.")
+            self.assertEqual(data["results"][0]["url"], "https://test.com/1")
+
+    def test_handle_search_augmented_query_with_ai_overview(self):
+        from nexa_engine import NexaLogicEngine
+        from nexa_storage import NexaStorage
+        import tempfile
+        import os
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_db:
+            db_path = tmp_db.name
+
+        try:
+            storage = NexaStorage(db_path=db_path)
+            engine = NexaLogicEngine(storage=storage)
+
+            mock_search_data = {
+                "ai_overview": "AI Overview: Light travels very fast. [+1]",
+                "results": []
+            }
+
+            with patch.object(engine.skills, "search_web_programmatic", return_value=mock_search_data), \
+                 patch.object(engine.skills, "web_search"), \
+                 patch.object(engine.generator, "generate", return_value="Synthesized speed of light answer. [+1]") as mock_gen:
+                
+                response = engine._handle_search_augmented_query("speed of light", "LOCAL")
+                self.assertIn("Synthesized speed of light answer", response)
+                self.assertNotIn("[+1]", response) # should be cleaned
         finally:
             if os.path.exists(db_path):
                 os.remove(db_path)

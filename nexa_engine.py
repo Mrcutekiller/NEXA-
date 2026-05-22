@@ -1119,63 +1119,111 @@ class NexaLogicEngine:
         search_msg = self.skills.web_search(user_input)
         
         # 2. Get programmatic snippets
-        snippets = self.skills.search_web_programmatic(user_input)
+        search_data = self.skills.search_web_programmatic(user_input)
         
-        # 3. Handle snippets if found
-        if snippets:
-            # Try to "click" the 1st link and retrieve full page context, checking 2nd link as fallback
-            first_link_content = ""
-            scraped_url = ""
-            for s in snippets[:2]:
+        # Support both dictionary output and legacy list output from mocks
+        if isinstance(search_data, dict):
+            ai_overview = search_data.get("ai_overview")
+            results = search_data.get("results", [])
+        else:
+            ai_overview = None
+            results = search_data
+            
+        # 3. Process AI Overview if found
+        if ai_overview:
+            clean_overview = self._clean_web_text(ai_overview)
+            
+            if active_provider != "LOCAL":
+                prompt = (
+                    f"You are NEXA OMNI, an advanced AI companion.\n"
+                    f"The top AI Overview / Featured Snippet for the search query \"{user_input}\" is:\n"
+                    f"\"{clean_overview}\"\n\n"
+                    f"Please answer the user's question: \"{user_input}\" based on this AI Overview.\n"
+                    f"Synthesize the main point directly. Do NOT include any raw links, URLs, domain names, "
+                    f"brackets like [1], or punctuation junk like '. /'."
+                )
+                resp = self._query_external_api(active_provider, prompt)
+                if resp:
+                    resp_cleaned = self._clean_web_text(resp)
+                    return f"NEXA › [SOURCE: LIVE SEARCH (AI OVERVIEW) & {active_provider}] I've opened Google Search in the background.\n\n{resp_cleaned}"
+            
+            # Local fallback presentation
+            gen_model = self._get_generation_model_key(user_input)
+            local_prompt = (
+                f"Answer the query: '{user_input}' based on this AI Overview: '{clean_overview}'. "
+                f"Do not include links, URLs, citation tags, or punctuation junk."
+            )
+            gen_resp = self.generator.generate(local_prompt, gen_model)
+            if gen_resp:
+                gen_resp = self._clean_web_text(gen_resp)
+                if active_provider != "LOCAL":
+                    return f"I couldn't get a response from {active_provider}. However, I've automatically launched a web search in the background and synthesized this main point from the top AI Overview:\n\n{gen_resp}"
+                return f"NEXA › [SOURCE: LIVE SEARCH (AI OVERVIEW)] I've automatically launched a web search in the background. Here is what I retrieved:\n\n{gen_resp}"
+            
+            # Fallback if generator fails
+            if active_provider != "LOCAL":
+                return f"I couldn't get a response from {active_provider}. I've automatically launched a web search in the background. Top point: {clean_overview}"
+            return f"NEXA › [SOURCE: LIVE SEARCH (AI OVERVIEW)] I've automatically launched a web search in the background. Top point: {clean_overview}"
+            
+        # 4. Fallback to scraping first page and others if no AI Overview is found
+        elif results:
+            scraped_pages = []
+            for s in results[:3]:
                 url = s.get("url")
                 if url:
                     content = self.skills.fetch_webpage_content(url)
                     if content and len(content) > 100:
-                        first_link_content = content
-                        scraped_url = url
-                        break
+                        scraped_pages.append({
+                            "url": url,
+                            "title": s.get("title", ""),
+                            "content": content
+                        })
             
             snippets_text = ""
-            for i, s in enumerate(snippets, 1):
-                snippets_text += f"[{i}] Title: {s['title']}\n    Snippet: {s['snippet']}\n    URL: {s['url']}\n\n"
+            for i, s in enumerate(results, 1):
+                snippets_text += f"[{i}] Title: {s.get('title')}\n    Snippet: {s.get('snippet')}\n    URL: {s.get('url')}\n\n"
             
             webpage_context = ""
-            if first_link_content:
-                webpage_context = f"\nWebpage full text content retrieved from top result ({scraped_url}):\n{first_link_content}\n\n"
-                
+            if scraped_pages:
+                webpage_context = "\nWebpage full text content retrieved from top results:\n"
+                for idx, page in enumerate(scraped_pages, 1):
+                    webpage_context += f"--- Page {idx}: {page['title']} ({page['url']}) ---\n{page['content']}\n\n"
+            
             if active_provider != "LOCAL":
                 prompt = (
                     f"You are NEXA OMNI, an advanced AI companion.\n"
                     f"Here is some web search context related to the user's query: \"{user_input}\"\n\n"
                     f"Search Snippets:\n{snippets_text}\n"
                     f"{webpage_context}"
-                    f"Please answer the user's question \"{user_input}\" based on the search results and full webpage content if available. "
-                    f"Review the facts carefully to provide a correct, valid and verified answer. "
+                    f"Please answer the user's question \"{user_input}\" based on the search results and full webpage contents from multiple sources.\n"
+                    f"Analyze the information from all webpage sources carefully, identify and resolve any contradictions or discrepancies, "
+                    f"and verify the facts to construct a correct, valid, real, and valued response.\n"
                     f"Keep your response concise, elegant, clear, and professional. "
                     f"Synthesize the main point directly. DO NOT include any raw links, URLs, domain names, "
                     f"brackets like [1], or punctuation junk like '. /'. Answer like a helpful human assistant."
                 )
                 resp = self._query_external_api(active_provider, prompt)
                 if resp:
-                    return f"NEXA › [SOURCE: LIVE SEARCH & {active_provider}] I've opened Google Search in the background.\n\n{resp}"
+                    resp_cleaned = self._clean_web_text(resp)
+                    return f"NEXA › [SOURCE: LIVE SEARCH & {active_provider}] I've opened Google Search in the background.\n\n{resp_cleaned}"
             
             # Fallback presentation when external API fails or is LOCAL
-            # Try to use local generator first to synthesize a clean text summary
             gen_model = self._get_generation_model_key(user_input)
             local_prompt = (
                 f"Answer the query: '{user_input}' "
                 f"by summarizing the following search results and webpage details in a clean, human-like paragraph. "
+                f"Resolve contradictions and verify the facts to give the correct real info. "
                 f"Do not include links, URLs, citation tags, or punctuation junk:\n\n"
             )
-            for s in snippets[:3]:
-                cleaned_snippet = self._clean_web_text(s['snippet'])
+            for s in results[:3]:
+                cleaned_snippet = self._clean_web_text(s.get('snippet'))
                 if cleaned_snippet:
                     local_prompt += f"- {cleaned_snippet}\n"
             
-            if first_link_content:
-                cleaned_page = self._clean_web_text(first_link_content[:400])
+            for idx, page in enumerate(scraped_pages):
+                cleaned_page = self._clean_web_text(page['content'][:300])
                 if cleaned_page:
-                    local_prompt += f"- Page details: {cleaned_page}\n"
+                    local_prompt += f"- Details from page {idx+1}: {cleaned_page}\n"
             
             gen_resp = self.generator.generate(local_prompt, gen_model)
             if gen_resp:
@@ -1187,16 +1235,16 @@ class NexaLogicEngine:
             # If local generator is not available, format the cleaned snippets cleanly
             body = ""
             seen_sentences = set()
-            for s in snippets[:4]:
-                snippet_text = self._clean_web_text(s['snippet'])
+            for s in results[:4]:
+                snippet_text = self._clean_web_text(s.get('snippet'))
                 if not snippet_text or len(snippet_text) <= 10:
                     continue
                 if snippet_text.lower() not in seen_sentences:
                     seen_sentences.add(snippet_text.lower())
                     body += f"• {snippet_text}\n\n"
             
-            if first_link_content:
-                cleaned_page = self._clean_web_text(first_link_content[:300])
+            for page in scraped_pages:
+                cleaned_page = self._clean_web_text(page['content'][:250])
                 if cleaned_page and cleaned_page.lower() not in seen_sentences:
                     body += f"• {cleaned_page}\n\n"
             

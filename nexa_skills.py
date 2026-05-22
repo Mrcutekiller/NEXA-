@@ -203,8 +203,66 @@ class NexaSkills:
         except Exception as e:
             return f"[ERROR] Directory access failed: {str(e)}"
 
+    def fetch_ai_overview(self, query):
+        """Attempts to retrieve a featured snippet or AI overview from Google Search or DuckDuckGo API."""
+        import requests
+        from bs4 import BeautifulSoup
+        import urllib.parse
+        
+        # 1. Try Google Search for a featured snippet
+        google_url = f"https://www.google.com/search?q={urllib.parse.quote(query)}"
+        try:
+            resp = requests.get(google_url, headers=self.headers, timeout=5)
+            if resp.status_code == 200:
+                soup = BeautifulSoup(resp.text, "html.parser")
+                
+                # Check known Google featured snippet / instant answer class selectors
+                selectors = [
+                    "span.hgKElc",  # Featured snippet text
+                    "div.Z0LcW",    # Quick answer / calculator / date
+                    "div.Y2Zype",    # Featured snippet description
+                    "div.w7Z55c",    # Featured snippet list
+                    "div.xuvxvd",    # Dictionary/quick definition
+                ]
+                
+                for sel in selectors:
+                    element = soup.select_one(sel)
+                    if element:
+                        text = element.get_text().strip()
+                        if text and len(text) > 15:
+                            return text
+                            
+                # Fallback to BNeawe container in mobile/simplified HTML if present
+                for div in soup.find_all("div", class_="BNeawe"):
+                    text = div.get_text().strip()
+                    # Check if it looks like a substantive definition or answer
+                    if text and len(text) > 40 and not text.startswith("http"):
+                        return text
+        except Exception:
+            pass
+            
+        # 2. Fallback to DuckDuckGo Instant Answer API
+        try:
+            ddg_api_url = f"https://api.duckduckgo.com/?q={urllib.parse.quote(query)}&format=json&no_html=1"
+            resp = requests.get(ddg_api_url, headers=self.headers, timeout=3)
+            if resp.status_code == 200:
+                data = resp.json()
+                abstract = data.get("AbstractText", "")
+                if abstract and len(abstract) > 15:
+                    return abstract
+                answer = data.get("Answer", "")
+                if answer and len(answer) > 15:
+                    return answer
+                definition = data.get("Definition", "")
+                if definition and len(definition) > 15:
+                    return definition
+        except Exception:
+            pass
+            
+        return None
+
     def search_web_programmatic(self, query):
-        """Programmatically queries DuckDuckGo html search and returns a list of dictionaries with title, snippet, and url."""
+        """Programmatically queries DuckDuckGo html search and returns a dict with 'ai_overview' and 'results' list."""
         import requests
         from bs4 import BeautifulSoup
         import urllib.parse
@@ -213,40 +271,44 @@ class NexaSkills:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
         }
         url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
+        results = []
         try:
             resp = requests.get(url, headers=headers, timeout=6)
-            if resp.status_code != 200:
-                return []
-            
-            soup = BeautifulSoup(resp.text, "html.parser")
-            divs = soup.find_all("div", class_="result")
-            results = []
-            for div in divs[:5]:
-                title_a = div.find("a", class_="result__url")
-                snippet_a = div.find("a", class_="result__snippet")
-                if title_a and snippet_a:
-                    # Parse the URL cleanly (remove DDG redirects if possible)
-                    raw_url = title_a.get("href", "")
-                    clean_url = raw_url
-                    if "//duckduckgo.com/l/?uddg=" in raw_url:
-                        try:
-                            parsed_url = urllib.parse.urlparse(raw_url)
-                            query_params = urllib.parse.parse_qs(parsed_url.query)
-                            if "uddg" in query_params:
-                                clean_url = query_params["uddg"][0]
-                        except Exception:
-                            pass
-                    elif raw_url.startswith("//"):
-                        clean_url = "https:" + raw_url
-                    
-                    results.append({
-                        "title": title_a.text.strip(),
-                        "snippet": snippet_a.text.strip(),
-                        "url": clean_url
-                    })
-            return results
+            if resp.status_code == 200:
+                soup = BeautifulSoup(resp.text, "html.parser")
+                divs = soup.find_all("div", class_="result")
+                for div in divs[:5]:
+                    title_a = div.find("a", class_="result__url")
+                    snippet_a = div.find("a", class_="result__snippet")
+                    if title_a and snippet_a:
+                        # Parse the URL cleanly (remove DDG redirects if possible)
+                        raw_url = title_a.get("href", "")
+                        clean_url = raw_url
+                        if "//duckduckgo.com/l/?uddg=" in raw_url:
+                            try:
+                                parsed_url = urllib.parse.urlparse(raw_url)
+                                query_params = urllib.parse.parse_qs(parsed_url.query)
+                                if "uddg" in query_params:
+                                    clean_url = query_params["uddg"][0]
+                            except Exception:
+                                pass
+                        elif raw_url.startswith("//"):
+                            clean_url = "https:" + raw_url
+                        
+                        results.append({
+                            "title": title_a.text.strip(),
+                            "snippet": snippet_a.text.strip(),
+                            "url": clean_url
+                        })
         except Exception:
-            return []
+            pass
+            
+        ai_overview = self.fetch_ai_overview(query)
+        return {
+            "ai_overview": ai_overview,
+            "results": results
+        }
+
 
     def fetch_webpage_content(self, url):
         """Fetches the webpage content, parses it, and returns the main text."""
