@@ -41,24 +41,28 @@ class NexaVoiceOutput:
                     continue
 
                 try:
-                    # Apply voice profile configuration
-                    rate = profile.get("rate", 150)
+                    # Default rate to 130 for a deep, smooth, and cool dictator-style voice
+                    rate = profile.get("rate", 130)
                     volume = profile.get("volume", 1.0)
                     
                     self.engine.setProperty("rate", rate)
                     self.engine.setProperty("volume", volume)
                     
-                    # In pyttsx3, we can try to select a voice.
-                    # Typically, index 0 is male, index 1 is female.
-                    # Let's map model pitch/styles to available voices
+                    # Select the deep male voice (e.g. David) for the smooth dictator profile
                     voices = self.engine.getProperty("voices")
-                    pitch = profile.get("pitch", "calm_slow")
+                    selected_voice = None
+                    if voices:
+                        # Prefer a male voice, specifically David
+                        for v in voices:
+                            name = getattr(v, "name", "").lower()
+                            if "david" in name or "male" in name:
+                                selected_voice = v.id
+                                break
+                        if not selected_voice:
+                            selected_voice = voices[0].id
                     
-                    if len(voices) > 1:
-                        if pitch == "energetic_expressive" or pitch == "sharp_fast":
-                            self.engine.setProperty("voice", voices[1].id) # Often female/high pitch
-                        else:
-                            self.engine.setProperty("voice", voices[0].id) # Often male/deep voice
+                    if selected_voice:
+                        self.engine.setProperty("voice", selected_voice)
 
                     # Speak
                     self.engine.say(text)

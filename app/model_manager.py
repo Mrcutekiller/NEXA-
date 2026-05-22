@@ -43,7 +43,7 @@ class NexaModelManager:
             temperature=0.2,
             max_tokens=2048,
             slash_commands=["/refactor", "/doc", "/explain", "/test", "/bench", "/review"],
-            voice_profile={"rate": 130, "volume": 1.0, "pitch": "calm_slow"},
+            voice_profile={"rate": 130, "volume": 1.0, "pitch": "deep_smooth"},
             xp_events={"code_written": 20, "code_reviewed": 15, "test_generated": 25}
         )
 
@@ -62,7 +62,7 @@ class NexaModelManager:
             temperature=0.7,
             max_tokens=2048,
             slash_commands=["/palette", "/layout", "/mockup", "/svg", "/css", "/wireframe"],
-            voice_profile={"rate": 160, "volume": 1.0, "pitch": "energetic_expressive"},
+            voice_profile={"rate": 130, "volume": 1.0, "pitch": "deep_smooth"},
             xp_events={"ui_designed": 20, "palette_generated": 10, "layout_created": 30}
         )
 
@@ -81,7 +81,7 @@ class NexaModelManager:
             temperature=0.1,
             max_tokens=2048,
             slash_commands=["/trace", "/analyze", "/patch", "/logs", "/sandbox", "/doctor"],
-            voice_profile={"rate": 140, "volume": 1.0, "pitch": "sharp_fast"},
+            voice_profile={"rate": 130, "volume": 1.0, "pitch": "deep_smooth"},
             xp_events={"bug_fixed": 30, "log_analyzed": 15, "patch_applied": 25}
         )
 
@@ -100,7 +100,7 @@ class NexaModelManager:
             temperature=0.5,
             max_tokens=4096,
             slash_commands=["/brainstorm", "/workflow", "/simulate", "/audit", "/optimize", "/solve"],
-            voice_profile={"rate": 150, "volume": 1.0, "pitch": "deep_authoritative"},
+            voice_profile={"rate": 130, "volume": 1.0, "pitch": "deep_smooth"},
             xp_events={"complex_solve": 40, "audit_completed": 35, "strategy_generated": 50}
         )
 
@@ -118,7 +118,7 @@ class NexaModelManager:
             temperature=0.5,
             max_tokens=4096,
             slash_commands=["/model", "/profile", "/skill", "/help"],
-            voice_profile={"rate": 150, "volume": 1.0, "pitch": "balanced"},
+            voice_profile={"rate": 130, "volume": 1.0, "pitch": "deep_smooth"},
             xp_events={"complex_solve": 10, "strategy_generated": 10}
         )
 

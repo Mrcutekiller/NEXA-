@@ -712,7 +712,7 @@ class NexaAI:
     # ── Voice ────────────────────────────────────────────────────────────────
 
     def _configure_voice_profile(self) -> Dict[str, object]:
-        profile: Dict[str, object] = {"rate": 145, "volume": 1.0, "voice_id": None}
+        profile: Dict[str, object] = {"rate": 130, "volume": 1.0, "voice_id": None}
         try:
             engine = pyttsx3.init()
             voices = engine.getProperty("voices")
