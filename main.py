@@ -921,8 +921,8 @@ class NexaAI:
         sys.stdout.flush()
 
     def _render_vertical_panes(self, panes: List[TerminalPane], buf: io.StringIO) -> None:
-        width = shutil.get_terminal_size((120, 32)).columns
         active_id = self.workspace.get_active_tab().active_pane_id
+        width = shutil.get_terminal_size((120, 32)).columns
 
         # Compute column widths from size_pct
         total_pct = sum(p.size_pct for p in panes) or 1
@@ -933,25 +933,20 @@ class NexaAI:
         for pane, col_w in zip(panes, col_widths):
             is_active = pane.pane_id == active_id
             lines = pane.lines[-8:] if pane.lines else ["(idle)"]
-            tl, tr, bl, br, h, v = ("╔", "╗", "╚", "╝", "═", "║") if is_active else ("┌", "┐", "└", "┘", "─", "│")
-            header_label = textwrap.shorten(pane.label, width=col_w - 4, placeholder="…")
-            if is_active:
-                accent = self._t("_fg_accent")
-            else:
-                accent = self._t("_fg_dim")
-            block = [f"{accent}{tl}{h * (col_w - 2)}{tr}{self._t('_reset')}"]
-            title = f"{accent}{v}{self._t('_reset')} {header_label:<{col_w - 4}} {accent}{v}{self._t('_reset')}"
-            block.append(title)
-            block.append(f"{accent}{v}{h * (col_w - 2)}{v}{self._t('_reset')}")
+            accent = self._t("_fg_accent") if is_active else self._t("_fg_dim")
+            status = " [ACTIVE]" if is_active else ""
+            header_label = textwrap.shorten(f"● {pane.label}{status}", width=col_w - 2, placeholder="…")
+            
+            block = [f"{accent}{header_label:<{col_w}}{self._t('_reset')}"]
+            block.append(f"{self._t('_fg_dim')}{'─' * (col_w - 2)}{self._t('_reset')}")
             for line in lines:
                 highlighted = self._highlight_output(line)
                 plain_len = len(self.workspace._strip_ansi(highlighted))
-                pad = max(0, col_w - 4 - plain_len)
-                block.append(f"{accent}{v}{self._t('_reset')} {highlighted}{' ' * pad} {accent}{v}{self._t('_reset')}")
+                pad = max(0, col_w - 2 - plain_len)
+                block.append(f"  {highlighted}{' ' * pad}")
             # Fill empty rows
             for _ in range(8 - len(lines)):
-                block.append(f"{accent}{v}{self._t('_reset')} {' ' * (col_w - 4)} {accent}{v}{self._t('_reset')}")
-            block.append(f"{accent}{bl}{h * (col_w - 2)}{br}{self._t('_reset')}")
+                block.append(" " * col_w)
             pane_blocks.append(block)
 
         max_rows = max(len(b) for b in pane_blocks)
@@ -968,19 +963,13 @@ class NexaAI:
         for pane in panes:
             is_active = pane.pane_id == active_id
             accent = self._t("_fg_accent") if is_active else self._t("_fg_dim")
-            tl, tr, bl, br, h = ("╔", "╗", "╚", "╝", "═") if is_active else ("┌", "┐", "└", "┘", "─")
-            col_w = min(96, width - 4)
-            label = textwrap.shorten(pane.label, width=col_w - 4, placeholder="…")
-            buf.write(f" {accent}{tl}{h * (col_w - 2)}{tr}{self._t('_reset')}\n")
-            buf.write(f" {accent}│{self._t('_reset')} {label:<{col_w - 4}} {accent}│{self._t('_reset')}\n")
-            buf.write(f" {accent}├{h * (col_w - 2)}┤{self._t('_reset')}\n")
+            label = textwrap.shorten(pane.label, width=width - 6, placeholder="…")
+            status = " [ACTIVE]" if is_active else ""
+            buf.write(f"\n {accent}● {label}{status}{self._t('_reset')}\n")
             lines = pane.lines[-6:] if pane.lines else ["(idle)"]
             for line in lines:
                 highlighted = self._highlight_output(line)
-                plain_len = len(self.workspace._strip_ansi(highlighted))
-                pad = max(0, col_w - 4 - plain_len)
-                buf.write(f" {accent}│{self._t('_reset')} {highlighted}{' ' * pad} {accent}│{self._t('_reset')}\n")
-            buf.write(f" {accent}{bl}{h * (col_w - 2)}{br}{self._t('_reset')}\n")
+                buf.write(f"   {self._t('_fg_primary')}{highlighted}{self._t('_reset')}\n")
 
     # ── Command menu ─────────────────────────────────────────────────────────
 
@@ -1455,42 +1444,35 @@ class NexaAI:
     # ── Output emission (buffered) ────────────────────────────────────────────
 
     def _emit_response(self, response: str, latency_ms: int) -> None:
-        """Accumulate all output in a StringIO then flush once — keeps UI snappy."""
+        """Accumulate all output and type with smooth live typing transitions."""
         self.workspace.append_output(f"NEXA> {response}")
-        width = shutil.get_terminal_size((80, 24)).columns
-        box_width = min(88, width - 4)
-        
         active_model = self.engine.active_model.upper()
         
-        # Header border line
-        header_text = f" NEXA CORE › {active_model} "
-        header_len = len(header_text)
-        border_left = "┌" + "─" * 4
-        border_right = "─" * max(4, box_width - header_len - 5) + "┐"
-        
-        buf = io.StringIO()
-        buf.write("\n")
-        buf.write(f" {self._t('_fg_accent')}{border_left}{self._t('_fg_primary')}{Style.BRIGHT}{header_text}{self._t('_reset')}{self._t('_fg_accent')}{border_right}{self._t('_reset')}\n")
-        
-        # Response body lines inside the box with vertical border lines
-        for line in response.splitlines() or [""]:
-            # Wrap lines to fit nicely in the box
-            wrapped = textwrap.wrap(line, width=box_width - 6) or [""]
-            for wline in wrapped:
-                highlighted = self._highlight_output(wline)
-                plain_wline = self.workspace._strip_ansi(highlighted)
-                padding_size = max(0, box_width - len(plain_wline) - 4)
-                buf.write(f" {self._t('_fg_accent')}│{self._t('_reset')}  {self._t('_fg_primary')}{highlighted}{self._t('_reset')}{' ' * padding_size} {self._t('_fg_accent')}│{self._t('_reset')}\n")
-                
-        # Footer border line
-        footer_text = f" {latency_ms}ms "
-        footer_len = len(footer_text)
-        border_footer = "└" + "─" * max(4, box_width - footer_len - 5) + footer_text + "─" * 4 + "┘"
-        
-        buf.write(f" {self._t('_fg_accent')}{border_footer}{self._t('_reset')}\n\n")
-        
-        sys.stdout.write(buf.getvalue())
+        # Clean, borderless minimalist header (similar to standard shell custom prompts)
+        sys.stdout.write(f"\n {self._t('_fg_accent')}NEXA CORE {self._t('_reset')}›  {self._t('_fg_primary')}{Style.BRIGHT}{active_model}{self._t('_reset')}  {self._t('_fg_dim')}[{latency_ms}ms]{self._t('_reset')}\n")
         sys.stdout.flush()
+
+        # Safely type highlighted response character-by-character (excluding ANSI tokens)
+        for line in response.splitlines() or [""]:
+            highlighted = self._highlight_output(line)
+            sys.stdout.write(f" {self._t('_fg_primary')}")
+            
+            # Instantly process ANSI codes, type normal characters with tiny delay
+            tokens = re.split(r'(\x1b\[[0-9;]*[mK])', highlighted)
+            for token in tokens:
+                if token.startswith('\x1b['):
+                    sys.stdout.write(token)
+                else:
+                    for char in token:
+                        sys.stdout.write(char)
+                        sys.stdout.flush()
+                        time.sleep(0.003)
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+            
+        sys.stdout.write(f"{self._t('_reset')}\n")
+        sys.stdout.flush()
+        
         self._print_workspace_snapshot()
         self.speak(response)
 
