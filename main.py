@@ -903,22 +903,8 @@ class NexaAI:
     # ── Pane snapshot renderer ───────────────────────────────────────────────
 
     def _print_workspace_snapshot(self) -> None:
-        tab = self.workspace.get_active_tab()
-        panes = [self.workspace.panes[pid] for pid in tab.pane_ids]
-        buf = io.StringIO()
-        buf.write(
-            f"\n {self._t('_fg_primary')}• "
-            f"{self._t('_fg_dim')}Session snapshot "
-            f"{self._t('_fg_primary')}tab={tab.label} layout={tab.layout} "
-            f"panes={len(panes)}{self._t('_reset')}\n"
-        )
-        if tab.layout == "vertical" and len(panes) > 1:
-            self._render_vertical_panes(panes, buf)
-        else:
-            self._render_horizontal_panes(panes, buf)
-        buf.write("\n")
-        sys.stdout.write(buf.getvalue())
-        sys.stdout.flush()
+        # Disabled to keep chat workspace screen clean and highly legible
+        pass
 
     def _render_vertical_panes(self, panes: List[TerminalPane], buf: io.StringIO) -> None:
         active_id = self.workspace.get_active_tab().active_pane_id
