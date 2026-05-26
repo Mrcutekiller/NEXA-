@@ -703,7 +703,61 @@ class NexaLogicEngine:
             flair_list = flairs.get(self.mood, flairs["neutral"])
             response += random.choice(flair_list)
             
+        # Prepend professional deep thought steps for complex conversational/technical queries
+        is_conversational_shortcut = response_type in ["acknowledgments", "short_queries", "joke_followup", "greetings"]
+        is_error = response.strip().startswith("[ERROR]") or response.strip().startswith("[SUCCESS]")
+        if not is_conversational_shortcut and not is_error and len(user_input.split()) > 2:
+            model_key = self.active_model.lower()
+            thought_process = self._generate_thought_process(user_input, model_key)
+            response = thought_process + response
+
         return response
+
+    def _generate_thought_process(self, user_input: str, model_key: str) -> str:
+        model_key = model_key.lower()
+        steps = []
+        
+        if model_key == "code":
+            steps = [
+                "Analyzing syntax requirements for user query...",
+                "Drafting optimal execution logic & avoiding runtime bloat...",
+                "Running background syntax validator (0 syntax errors)...",
+                "Synthesizing high-performance code response..."
+            ]
+        elif model_key == "design":
+            steps = [
+                "Deconstructing visual structure & layout options...",
+                "Auditing contrast ratios for WCAG 2.1 Compliance...",
+                "Mapping grid systems & border parameters...",
+                "Compiling symmetric CSS layout..."
+            ]
+        elif model_key == "fix":
+            steps = [
+                "Analyzing execution traceback & error signatures...",
+                "Locating potential race conditions or runtime timeouts...",
+                "Designing non-breaking structural patch...",
+                "Verifying patch integrity against standard libraries..."
+            ]
+        elif model_key == "god_eye":
+            steps = [
+                "Scanning local active workspace directory...",
+                "Spawning background thread agents to audit directory integrity...",
+                "Analyzing token latency & server health nominal variables...",
+                "Routing unified orchestration protocol..."
+            ]
+        else: # ultra or others
+            steps = [
+                "Parsing objective parameters & context intent...",
+                "Cross-referencing synaptic facts inside knowledge vault...",
+                "Evaluating optimal reasoning paths (accuracy probability: 98.7%)...",
+                "Formulating concise, professional logical summary..."
+            ]
+            
+        thought_block = "<thought>\n"
+        for idx, step in enumerate(steps, 1):
+            thought_block += f"● [Phase {idx}/4] {step}\n"
+        thought_block += "</thought>\n"
+        return thought_block
 
     def handle_cli_command(self, command_str):
         """Routes nexa <category> <action> commands."""

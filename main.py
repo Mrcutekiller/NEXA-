@@ -1448,12 +1448,39 @@ class NexaAI:
         self.workspace.append_output(f"NEXA> {response}")
         active_model = self.engine.active_model.upper()
         
+        # Intercept <thought>...</thought> tags if present
+        thought_content = ""
+        final_response = response
+        thought_match = re.search(r'<thought>([\s\S]*?)<\/thought>', response)
+        if thought_match:
+            thought_content = thought_match.group(1).strip()
+            final_response = response.replace(thought_match.group(0), "").strip()
+
         # Clean, borderless minimalist header (similar to standard shell custom prompts)
         sys.stdout.write(f"\n {self._t('_fg_accent')}NEXA CORE {self._t('_reset')}›  {self._t('_fg_primary')}{Style.BRIGHT}{active_model}{self._t('_reset')}  {self._t('_fg_dim')}[{latency_ms}ms]{self._t('_reset')}\n")
         sys.stdout.flush()
 
-        # Safely type highlighted response character-by-character (excluding ANSI tokens)
-        for line in response.splitlines() or [""]:
+        # 1. Stream the Deep Thought stages in dim italicized stone grey
+        if thought_content:
+            sys.stdout.write(f" {self._t('_fg_dim')}{Style.DIM}⬢ NEXA DEEP THOUGHT:{self._t('_reset')}\n")
+            for line in thought_content.splitlines():
+                clean_line = line.replace('● ', '').replace('[Phase ', '[').strip()
+                # Print each step of thinking with a clean fade-in typing transition
+                sys.stdout.write(f"   {self._t('_fg_dim')}* {clean_line}")
+                sys.stdout.flush()
+                # Simulate thinking progress
+                for _ in range(3):
+                    sys.stdout.write(".")
+                    sys.stdout.flush()
+                    time.sleep(0.06)
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+            sys.stdout.write(f" {self._t('_fg_dim')}{Style.DIM}⬢ SYNTHESIZING RESPONSE...{self._t('_reset')}\n\n")
+            sys.stdout.flush()
+            time.sleep(0.2)
+
+        # 2. Type out the final response highlighted and with tiny typing delays
+        for line in final_response.splitlines() or [""]:
             highlighted = self._highlight_output(line)
             sys.stdout.write(f" {self._t('_fg_primary')}")
             

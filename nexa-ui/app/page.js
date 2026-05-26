@@ -71,7 +71,6 @@ const SLASH_COMMANDS = [
   { cmd: '/challenges', title: 'Daily Challenge', desc: 'Load active model coding duel', icon: Compass }
 ];
 
-// Quick Starter cards rendered on welcome screen
 const STARTER_CARDS = [
   {
     icon: Code,
@@ -99,7 +98,140 @@ const STARTER_CARDS = [
   }
 ];
 
-// Monospace Code Block renderer with Clipboard interaction
+// Interactive Floating Constellation Canvas Grid
+const ConstellationBackground = () => {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animationFrameId;
+
+    const handleResize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    const particles = [];
+    const count = 45;
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.22,
+        vy: (Math.random() - 0.5) * 0.22,
+        size: Math.random() * 1.6 + 0.4
+      });
+    }
+
+    let mouse = { x: null, y: null };
+    const handleMouseMove = (e) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'rgba(245, 245, 244, 0.12)';
+      
+      particles.forEach((p) => {
+        p.x += p.vx;
+        p.y += p.vy;
+
+        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+        if (mouse.x && mouse.y) {
+          const dx = mouse.x - p.x;
+          const dy = mouse.y - p.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 155) {
+            p.x += dx * 0.0035;
+            p.y += dy * 0.0035;
+          }
+        }
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.strokeStyle = 'rgba(245, 245, 244, 0.022)';
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i < count; i++) {
+        for (let j = i + 1; j < count; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 110) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      animationFrameId = requestAnimationFrame(draw);
+    };
+    draw();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('mousemove', handleMouseMove);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none z-0 opacity-35" />;
+};
+
+// Collapsible Chain of Thought Accordion panel
+const ThoughtAccordion = ({ content }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="mb-4 rounded-xl border border-stone-850 bg-stone-900/10 overflow-hidden font-sans select-none shadow-sm">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-4 py-2.5 bg-stone-950/20 hover:bg-stone-950/40 transition-colors text-[11px] text-stone-500 font-mono font-medium cursor-pointer"
+      >
+        <div className="flex items-center gap-2">
+          <Brain className="w-3.5 h-3.5 text-amber-500/80 animate-pulse" />
+          <span>NEXA DEEP THOUGHT PROCESS</span>
+        </div>
+        <div className="flex items-center gap-1 text-[10px]">
+          <span>{isOpen ? 'COLLAPSE' : 'EXPAND'}</span>
+          <ChevronRight className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} />
+        </div>
+      </button>
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: 'easeInOut' }}
+          >
+            <div className="px-4 py-3 border-t border-stone-900/50 bg-[#0c0b0a]/35 text-[11px] font-mono leading-relaxed text-stone-400 space-y-1.5">
+              {content.split('\n').map((line, i) => (
+                <p key={i} className="flex items-start gap-2">
+                  <span className="text-amber-500/60 shrink-0 mt-0.5">●</span>
+                  <span>{line.replace('● ', '').replace(/\[Phase \d\/\d\]/, '').trim()}</span>
+                </p>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 const CodeBlock = ({ language, code }) => {
   const [copied, setCopied] = useState(false);
 
@@ -141,135 +273,142 @@ const CodeBlock = ({ language, code }) => {
 const MessageFormatter = ({ text }) => {
   if (!text) return null;
 
-  // Split content by code blocks
-  const parts = text.split(/(```[\s\S]*?```)/g);
+  // Split by thought tags first
+  const thoughtParts = text.split(/(<thought>[\s\S]*?<\/thought>)/g);
 
-  return parts.map((part, idx) => {
-    if (part.startsWith('```') && part.endsWith('```')) {
-      const match = part.match(/```(\w*)\n([\s\S]*?)```/);
-      const lang = match ? match[1] : 'code';
-      const code = match ? match[2] : part.slice(3, -3);
-
-      return <CodeBlock key={idx} language={lang} code={code} />;
+  return thoughtParts.map((tPart, tIdx) => {
+    if (tPart.startsWith('<thought>') && tPart.endsWith('</thought>')) {
+      const thoughtContent = tPart.slice(9, -10).trim();
+      return <ThoughtAccordion key={`thought-${tIdx}`} content={thoughtContent} />;
     }
 
-    // Process general prose styling
-    return (
-      <div key={idx} className="space-y-2 leading-relaxed">
-        {part.split('\n').map((line, lIdx) => {
-          // Preprocess bold notations from engine
-          let currentText = line.replace(/\[bold\]/g, '**').replace(/\[\/bold\]/g, '**');
-          
-          let elements = [];
-          const boldRegex = /\*\*(.*?)\*\*/g;
-          let lastIndex = 0;
-          let segmentId = 0;
+    // Split by code blocks
+    const parts = tPart.split(/(```[\s\S]*?```)/g);
 
-          const boldMatches = [...currentText.matchAll(boldRegex)];
-          if (boldMatches.length > 0) {
-            boldMatches.forEach((m) => {
-              const startIdx = m.index;
-              const textBefore = currentText.slice(lastIndex, startIdx);
-              const boldContent = m[1];
-              
-              if (textBefore) {
-                // Check inline code within textBefore
-                elements.push(...parseInlineCode(textBefore, segmentId++));
+    return parts.map((part, idx) => {
+      if (part.startsWith('```') && part.endsWith('```')) {
+        const match = part.match(/```(\w*)\n([\s\S]*?)```/);
+        const lang = match ? match[1] : 'code';
+        const code = match ? match[2] : part.slice(3, -3);
+
+        return <CodeBlock key={`code-${idx}`} language={lang} code={code} />;
+      }
+
+      // Process general prose styling
+      return (
+        <div key={`prose-${idx}`} className="space-y-2 leading-relaxed">
+          {part.split('\n').map((line, lIdx) => {
+            // Preprocess bold notations from engine
+            let currentText = line.replace(/\[bold\]/g, '**').replace(/\[\/bold\]/g, '**');
+            
+            let elements = [];
+            const boldRegex = /\*\*(.*?)\*\*/g;
+            let lastIndex = 0;
+            let segmentId = 0;
+
+            const boldMatches = [...currentText.matchAll(boldRegex)];
+            if (boldMatches.length > 0) {
+              boldMatches.forEach((m) => {
+                const startIdx = m.index;
+                const textBefore = currentText.slice(lastIndex, startIdx);
+                const boldContent = m[1];
+                
+                if (textBefore) {
+                  elements.push(...parseInlineCode(textBefore, segmentId++));
+                }
+                elements.push(<strong key={`bold-${segmentId++}`} className="font-semibold text-stone-100">{boldContent}</strong>);
+                lastIndex = startIdx + m[0].length;
+              });
+              const textAfter = currentText.slice(lastIndex);
+              if (textAfter) {
+                elements.push(...parseInlineCode(textAfter, segmentId++));
               }
-              elements.push(<strong key={`bold-${segmentId++}`} className="font-semibold text-stone-100">{boldContent}</strong>);
-              lastIndex = startIdx + m[0].length;
-            });
-            const textAfter = currentText.slice(lastIndex);
-            if (textAfter) {
-              elements.push(...parseInlineCode(textAfter, segmentId++));
+            } else {
+              elements.push(...parseInlineCode(currentText, segmentId++));
             }
-          } else {
-            elements.push(...parseInlineCode(currentText, segmentId++));
-          }
 
-          // Helper for parsing inline code inside blocks
-          function parseInlineCode(textSeg, baseId) {
-            const inlineRegex = /`(.*?)`/g;
-            const inlineMatches = [...textSeg.matchAll(inlineRegex)];
-            if (inlineMatches.length === 0) return [<span key={`text-${baseId}`}>{textSeg}</span>];
+            // Helper for parsing inline code inside blocks
+            function parseInlineCode(textSeg, baseId) {
+              const inlineRegex = /`(.*?)`/g;
+              const inlineMatches = [...textSeg.matchAll(inlineRegex)];
+              if (inlineMatches.length === 0) return [<span key={`text-${baseId}`}>{textSeg}</span>];
 
-            let segElements = [];
-            let lastSegIndex = 0;
-            let subId = 0;
-            inlineMatches.forEach((m) => {
-              const startSegIdx = m.index;
-              const txtBefore = textSeg.slice(lastSegIndex, startSegIdx);
-              const inlineCodeContent = m[1];
+              let segElements = [];
+              let lastSegIndex = 0;
+              let subId = 0;
+              inlineMatches.forEach((m) => {
+                const startSegIdx = m.index;
+                const txtBefore = textSeg.slice(lastSegIndex, startSegIdx);
+                const inlineCodeContent = m[1];
 
-              if (txtBefore) {
-                segElements.push(<span key={`txt-${baseId}-${subId++}`}>{txtBefore}</span>);
+                if (txtBefore) {
+                  segElements.push(<span key={`txt-${baseId}-${subId++}`}>{txtBefore}</span>);
+                }
+                segElements.push(
+                  <code key={`code-${baseId}-${subId++}`} className="px-1.5 py-0.5 rounded bg-stone-900 border border-stone-850 text-stone-200 font-mono text-[11px] mx-0.5">
+                    {inlineCodeContent}
+                  </code>
+                );
+                lastSegIndex = startSegIdx + m[0].length;
+              });
+              const txtAfter = textSeg.slice(lastSegIndex);
+              if (txtAfter) {
+                segElements.push(<span key={`txt-${baseId}-${subId++}`}>{txtAfter}</span>);
               }
-              segElements.push(
-                <code key={`code-${baseId}-${subId++}`} className="px-1.5 py-0.5 rounded bg-stone-900 border border-stone-850 text-stone-200 font-mono text-[11px] mx-0.5">
-                  {inlineCodeContent}
-                </code>
+              return segElements;
+            }
+
+            // Render list structures
+            if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+              return (
+                <li key={lIdx} className="ml-5 list-disc pl-1 text-stone-300 py-0.5">
+                  {elements}
+                </li>
               );
-              lastSegIndex = startSegIdx + m[0].length;
-            });
-            const txtAfter = textSeg.slice(lastSegIndex);
-            if (txtAfter) {
-              segElements.push(<span key={`txt-${baseId}-${subId++}`}>{txtAfter}</span>);
             }
-            return segElements;
-          }
+            if (line.trim().startsWith('• ')) {
+              return (
+                <li key={lIdx} className="ml-5 list-disc pl-1 text-stone-300 py-0.5">
+                  {elements}
+                </li>
+              );
+            }
+            if (/^\d+\.\s/.test(line.trim())) {
+              return (
+                <li key={lIdx} className="ml-5 list-decimal pl-1 text-stone-300 py-0.5">
+                  {elements}
+                </li>
+              );
+            }
 
-          // Render list structures
-          if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
-            return (
-              <li key={lIdx} className="ml-5 list-disc pl-1 text-stone-300 py-0.5">
-                {elements}
-              </li>
-            );
-          }
-          if (line.trim().startsWith('• ')) {
-            return (
-              <li key={lIdx} className="ml-5 list-disc pl-1 text-stone-300 py-0.5">
-                {elements}
-              </li>
-            );
-          }
-          if (/^\d+\.\s/.test(line.trim())) {
-            return (
-              <li key={lIdx} className="ml-5 list-decimal pl-1 text-stone-300 py-0.5">
-                {elements}
-              </li>
-            );
-          }
+            // Section headings
+            if (line.startsWith('### ')) {
+              return <h4 key={lIdx} className="text-sm font-semibold text-stone-100 pt-3 pb-1">{line.replace('### ', '')}</h4>;
+            }
+            if (line.startsWith('## ')) {
+              return <h3 key={lIdx} className="text-base font-semibold text-stone-100 pt-4 pb-1.5">{line.replace('## ', '')}</h3>;
+            }
+            if (line.startsWith('# ')) {
+              return <h2 key={lIdx} className="text-lg font-bold text-stone-100 pt-5 pb-2">{line.replace('# ', '')}</h2>;
+            }
 
-          // Section headings
-          if (line.startsWith('### ')) {
-            return <h4 key={lIdx} className="text-sm font-semibold text-stone-100 pt-3 pb-1">{line.replace('### ', '')}</h4>;
-          }
-          if (line.startsWith('## ')) {
-            return <h3 key={lIdx} className="text-base font-semibold text-stone-100 pt-4 pb-1.5">{line.replace('## ', '')}</h3>;
-          }
-          if (line.startsWith('# ')) {
-            return <h2 key={lIdx} className="text-lg font-bold text-stone-100 pt-5 pb-2">{line.replace('# ', '')}</h2>;
-          }
+            // Empty spaces
+            if (line.trim() === '') {
+              return <div key={lIdx} className="h-2" />;
+            }
 
-          // Empty spaces
-          if (line.trim() === '') {
-            return <div key={lIdx} className="h-2" />;
-          }
-
-          return <p key={lIdx} className="text-stone-300 font-sans leading-relaxed">{elements}</p>;
-        })}
-      </div>
-    );
+            return <p key={lIdx} className="text-stone-300 font-sans leading-relaxed">{elements}</p>;
+          })}
+        </div>
+      );
+    });
   });
 };
 
 export default function NexaDashboard() {
-  // Collapsible panel toggles
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
 
-  // Connection & model state
   const [activeModel, setActiveModel] = useState('ultra');
   const [messages, setMessages] = useState([
     {
@@ -285,7 +424,6 @@ export default function NexaDashboard() {
   const [latency, setLatency] = useState('0.000s');
   const [isOnline, setIsOnline] = useState(true);
 
-  // Profile data sync
   const [userProfile, setUserProfile] = useState({
     name: 'Biruk',
     age: 25,
@@ -294,7 +432,6 @@ export default function NexaDashboard() {
     chats: 142
   });
 
-  // Action Skills
   const [skills, setSkills] = useState([
     { name: 'web_search', desc: 'Live Google & browser lookup', type: 'core' },
     { name: 'open_app', desc: 'Launch desktop applications', type: 'core' },
@@ -302,31 +439,26 @@ export default function NexaDashboard() {
     { name: 'image_analysis', desc: 'Scan visuals and metadata', type: 'core' }
   ]);
 
-  // Saved conversations
   const [recentChats, setRecentChats] = useState([
     { id: '1', title: 'Refactoring FastAPI server', pinned: true },
     { id: '2', title: 'Next.js 15 UI/UX Redesign', pinned: true },
     { id: '3', title: 'Local SQLite integration', pinned: false }
   ]);
 
-  // Autocomplete commands menu
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [slashSearch, setSlashSearch] = useState('');
   const [selectedSlashIndex, setSelectedSlashIndex] = useState(0);
 
-  // References
   const chatEndRef = useRef(null);
   const textareaRef = useRef(null);
   const slashMenuRef = useRef(null);
 
   const theme = MODEL_THEMES[activeModel] || MODEL_THEMES.ultra;
 
-  // Auto scroll chat list
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  // Autosize input textbox
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -334,7 +466,6 @@ export default function NexaDashboard() {
     }
   }, [inputText]);
 
-  // Keyboard navigation inside slash command dropdown
   const handleKeyDown = (e) => {
     if (showSlashMenu) {
       const filtered = SLASH_COMMANDS.filter(c => 
@@ -382,7 +513,6 @@ export default function NexaDashboard() {
     }
   };
 
-  // Sync state from FastAPI local server
   const fetchStatus = async () => {
     try {
       const res = await fetch('http://127.0.0.1:8000/status');
@@ -408,12 +538,10 @@ export default function NexaDashboard() {
 
   useEffect(() => {
     fetchStatus();
-    // Poll connection status occasionally
     const interval = setInterval(fetchStatus, 8000);
     return () => clearInterval(interval);
   }, []);
 
-  // Send input trigger
   const handleSend = async (customText = null) => {
     const text = (typeof customText === 'string' ? customText : inputText).trim();
     if (!text) return;
@@ -421,7 +549,6 @@ export default function NexaDashboard() {
     setInputText('');
     setShowSlashMenu(false);
 
-    // Render user message instantly
     const userMsg = {
       id: Date.now().toString(),
       sender: 'user',
@@ -431,7 +558,6 @@ export default function NexaDashboard() {
     setMessages(prev => [...prev, userMsg]);
     setIsTyping(true);
 
-    // Client model toggle support
     if (text.startsWith('/model ')) {
       const targetModel = text.replace('/model ', '').trim().toLowerCase();
       if (MODEL_THEMES[targetModel]) {
@@ -469,16 +595,15 @@ export default function NexaDashboard() {
         throw new Error('Offline link fallback');
       }
     } catch (err) {
-      // Simulate backend routing offline
       setTimeout(() => {
         let simulatedReply = '';
         if (text.startsWith('/help')) {
-          simulatedReply = "⚡ **NEXA Core Help Protocols**\n\nUse `/model [code|design|fix|ultra|god_eye]` to switch cognitive engines.\nUse `/profile` to list variables.\nUse `/clear` to clear active conversation history.";
+          simulatedReply = "<thought>\n● [Phase 1/4] Parsing objective parameters & context intent...\n● [Phase 2/4] Cross-referencing synaptic facts inside knowledge vault...\n● [Phase 3/4] Formulating concise, professional logical summary...\n</thought>\n⚡ **NEXA Core Help Protocols**\n\nUse `/model [code|design|fix|ultra|god_eye]` to switch cognitive engines.\nUse `/profile` to list variables.\nUse `/clear` to clear active conversation history.";
         } else if (text.startsWith('/model')) {
           const parts = text.split(' ');
           if (parts[1] && MODEL_THEMES[parts[1].toLowerCase()]) {
             setActiveModel(parts[1].toLowerCase());
-            simulatedReply = `Switched cognitive path to **${parts[1].toUpperCase()}** mode successfully.`;
+            simulatedReply = `<thought>\n● [Phase 1/4] Swapping active model routing node...\n● [Phase 2/4] Loading state weights & constraints...\n</thought>\nSwitched cognitive path to **${parts[1].toUpperCase()}** mode successfully.`;
           } else {
             simulatedReply = "Please specify an active model node: `code`, `design`, `fix`, `ultra`, or `god_eye`.";
           }
@@ -512,8 +637,11 @@ export default function NexaDashboard() {
   const hasWelcomeOnly = messages.length === 1 && messages[0].id === 'welcome';
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#0d0c0b] text-stone-100 font-sans selection:bg-stone-800 selection:text-amber-200">
+    <div className="flex h-screen w-screen overflow-hidden bg-[#0d0c0b] text-stone-100 font-sans selection:bg-stone-800 selection:text-amber-200 relative">
       
+      {/* Dynamic Constellation Canvas Grid */}
+      <ConstellationBackground />
+
       {/* Background cinematic aura matching the active model's custom theme colors */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
         <div 
@@ -531,7 +659,7 @@ export default function NexaDashboard() {
             animate={{ width: 280, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="h-full flex flex-col border-r border-stone-900/80 bg-[#0e0d0c] select-none shrink-0 z-20 relative overflow-hidden"
+            className="h-full flex flex-col border-r border-stone-900/80 bg-[#0e0d0c]/80 backdrop-blur-md select-none shrink-0 z-25 relative overflow-hidden"
           >
             {/* Header / Brand Logo */}
             <div className="p-5 flex items-center justify-between border-b border-stone-900/85 h-16 shrink-0">
@@ -555,7 +683,6 @@ export default function NexaDashboard() {
             {/* Main sidebar content scroll box */}
             <div className="flex-1 overflow-y-auto scroll-clean p-4 space-y-6">
               
-              {/* Workspace chat toggle */}
               <button 
                 onClick={() => setMessages([{
                   id: 'welcome',
@@ -584,7 +711,7 @@ export default function NexaDashboard() {
                     >
                       <Clock className="w-3.5 h-3.5 text-stone-600 group-hover:text-stone-400" />
                       <span className="truncate flex-1">{c.title}</span>
-                      {c.pinned && <Pin className="w-2.5 h-2.5 text-stone-650 rotate-45" />}
+                      {c.pinned && <Pin className="w-2.5 h-2.5 text-stone-655 rotate-45" />}
                     </button>
                   ))}
                 </div>
@@ -655,7 +782,6 @@ export default function NexaDashboard() {
         {/* Sleek Glass Header */}
         <header className="h-16 flex items-center justify-between px-6 border-b border-stone-900/60 bg-[#0e0d0c]/30 backdrop-blur-md shrink-0">
           <div className="flex items-center gap-3">
-            {/* Sidebar toggle buttons */}
             <button 
               onClick={() => setLeftSidebarOpen(p => !p)} 
               className="p-1.5 rounded-lg hover:bg-stone-900/60 text-stone-400 hover:text-stone-200 transition-colors cursor-pointer"
@@ -664,7 +790,6 @@ export default function NexaDashboard() {
               {leftSidebarOpen ? <ChevronLeft className="w-4.5 h-4.5" /> : <Menu className="w-4.5 h-4.5" />}
             </button>
 
-            {/* Status light indicators */}
             <div className="hidden sm:flex items-center gap-2 px-2 py-0.5 rounded-full border border-stone-900 bg-stone-950/40 text-[10px]">
               <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
               <span className="text-stone-400 font-mono">{isOnline ? 'Omni Link Active' : 'Offline'}</span>
@@ -681,7 +806,6 @@ export default function NexaDashboard() {
                   key={mKey}
                   onClick={() => {
                     setActiveModel(mKey);
-                    // Also notify the backend engine of model swapper if online
                     handleSend(`/model ${mKey}`);
                   }}
                   className={`px-3 py-1 rounded-full text-[10px] font-mono tracking-wider font-semibold transition-all duration-300 flex items-center gap-1 cursor-pointer ${
@@ -698,7 +822,6 @@ export default function NexaDashboard() {
             })}
           </div>
 
-          {/* Right actions toggle inspector */}
           <div className="flex items-center gap-2">
             <span className="hidden sm:inline font-mono text-[10px] text-stone-500">Latency: {latency}</span>
             <button 
@@ -712,10 +835,9 @@ export default function NexaDashboard() {
         </header>
 
         {/* Workspace Chat Scroll Area */}
-        <section className="flex-1 overflow-y-auto scroll-clean px-4 py-8 flex justify-center">
+        <section className="flex-1 overflow-y-auto scroll-clean px-4 py-8 flex justify-center z-10">
           <div className="w-full max-w-3xl flex flex-col space-y-8 pb-12">
             
-            {/* Conditional Welcome Layout (Stunning Claude-like visual cards) */}
             {hasWelcomeOnly ? (
               <motion.div 
                 initial={{ opacity: 0, y: 15 }}
@@ -723,7 +845,6 @@ export default function NexaDashboard() {
                 transition={{ duration: 0.45 }}
                 className="flex-1 flex flex-col justify-center items-center py-12 text-center"
               >
-                {/* Core breathing logo icon */}
                 <div 
                   className="w-16 h-16 rounded-3xl flex items-center justify-center animate-pulse-gentle shadow-2xl relative mb-6"
                   style={{ 
@@ -741,7 +862,6 @@ export default function NexaDashboard() {
                   Neural active link • {theme.title}
                 </p>
 
-                {/* Grid Starter templates */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full max-w-2xl text-left">
                   {STARTER_CARDS.map((card, index) => {
                     const CardIcon = card.icon;
@@ -750,7 +870,7 @@ export default function NexaDashboard() {
                         key={index}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 * index }}
+                        transition={{ delay: 0.08 * index }}
                         onClick={() => {
                           setInputText(card.prompt);
                           textareaRef.current?.focus();
@@ -770,7 +890,6 @@ export default function NexaDashboard() {
                 </div>
               </motion.div>
             ) : (
-              /* Normal Chat History list bubbles */
               <div className="space-y-6 flex-1">
                 <AnimatePresence initial={false}>
                   {messages.map((m) => {
@@ -788,7 +907,6 @@ export default function NexaDashboard() {
                       >
                         <div className={`flex gap-4 max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
                           
-                          {/* Round Avatar Icon */}
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs shrink-0 select-none border border-stone-850/80 shadow-md ${
                             isUser 
                               ? 'bg-stone-900 text-stone-300 font-semibold' 
@@ -797,7 +915,6 @@ export default function NexaDashboard() {
                             {isUser ? <User className="w-3.5 h-3.5" /> : <span>{msgTheme?.icon || '🤖'}</span>}
                           </div>
 
-                          {/* Message Content Area */}
                           <div className="space-y-1">
                             <div className={`px-4 py-3 rounded-2xl text-[13px] leading-relaxed shadow-sm font-sans break-words border ${
                               isUser 
@@ -811,7 +928,6 @@ export default function NexaDashboard() {
                               <MessageFormatter text={m.text} />
                             </div>
 
-                            {/* Timestamp / Reaction items row */}
                             <div className={`flex items-center gap-2 px-1 py-0.5 text-[10px] text-stone-500 font-mono ${isUser ? 'justify-end' : 'justify-start'}`}>
                               <span>{m.timestamp}</span>
                               {!isUser && (
@@ -851,7 +967,6 @@ export default function NexaDashboard() {
               </div>
             )}
 
-            {/* Dynamic Loading Typing Dots */}
             {isTyping && (
               <motion.div 
                 initial={{ opacity: 0, y: 5 }}
@@ -879,7 +994,6 @@ export default function NexaDashboard() {
         <section className="px-6 py-5 border-t border-stone-900/60 bg-[#0d0c0b]/40 backdrop-blur-xl shrink-0 z-30 relative">
           <div className="max-w-2xl mx-auto relative">
             
-            {/* AUTOCOMPLETE protocalls console box */}
             <AnimatePresence>
               {showSlashMenu && filteredSlashCommands.length > 0 && (
                 <motion.div 
@@ -911,7 +1025,7 @@ export default function NexaDashboard() {
                           <IconComp className={`w-4 h-4 shrink-0 ${isSelected ? 'text-amber-500' : 'text-stone-550'}`} />
                           <div className="flex-1 min-w-0 font-sans">
                             <span className="font-mono font-semibold block text-stone-250">{c.cmd}</span>
-                            <span className="text-[10px] text-stone-500 truncate block mt-0.5">{c.desc}</span>
+                            <span className="text-[10px] text-stone-550 truncate block mt-0.5">{c.desc}</span>
                           </div>
                           {c.shortcut && (
                             <span className="text-[9px] bg-stone-900 px-1.5 py-0.5 rounded border border-stone-850 font-mono text-stone-500">
@@ -926,7 +1040,6 @@ export default function NexaDashboard() {
               )}
             </AnimatePresence>
 
-            {/* Custom Glowing Border Glass Input Area */}
             <div className="glass-input rounded-2xl flex flex-col p-2.5 shadow-md relative">
               <textarea
                 ref={textareaRef}
@@ -940,7 +1053,6 @@ export default function NexaDashboard() {
 
               <div className="flex items-center justify-between border-t border-stone-900/50 pt-2 px-1">
                 
-                {/* Media Actions */}
                 <div className="flex items-center gap-1">
                   <button className="p-2 rounded-lg hover:bg-stone-900/60 text-stone-500 hover:text-stone-300 transition-colors cursor-pointer" title="Upload file details">
                     <Paperclip className="w-4 h-4" />
@@ -950,7 +1062,6 @@ export default function NexaDashboard() {
                   </button>
                 </div>
 
-                {/* Interactive keys helper */}
                 <div className="hidden sm:flex items-center gap-1 text-[9px] text-stone-600 font-mono select-none px-2 py-1 rounded bg-stone-950/20 border border-stone-900">
                   <span className="text-stone-500 font-semibold font-sans">Shift + Enter</span>
                   <span>new line</span>
@@ -959,7 +1070,6 @@ export default function NexaDashboard() {
                   <span>send</span>
                 </div>
 
-                {/* Custom active model color matched Submit button */}
                 <button
                   onClick={() => handleSend()}
                   disabled={!inputText.trim()}
@@ -984,7 +1094,7 @@ export default function NexaDashboard() {
 
       </main>
 
-      {/* RIGHT SIDEBAR - SYNAPTIC INSPECTOR (Collapsible telemetry analysis box) */}
+      {/* RIGHT SIDEBAR - SYNAPTIC INSPECTOR */}
       <AnimatePresence initial={false}>
         {rightSidebarOpen && (
           <motion.aside 
@@ -992,9 +1102,8 @@ export default function NexaDashboard() {
             animate={{ width: 300, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="h-full flex flex-col border-l border-stone-900/80 bg-[#0e0d0c] select-none shrink-0 z-20 overflow-hidden"
+            className="h-full flex flex-col border-l border-stone-900/80 bg-[#0e0d0c]/80 backdrop-blur-md select-none shrink-0 z-25 overflow-hidden"
           >
-            {/* Header Title */}
             <div className="p-5 flex items-center justify-between border-b border-stone-900/85 h-16 shrink-0">
               <span className="font-semibold text-xs tracking-wider text-stone-400 font-mono uppercase">Telemetry Metrics</span>
               <button 
@@ -1005,10 +1114,8 @@ export default function NexaDashboard() {
               </button>
             </div>
 
-            {/* Scrollable details info */}
             <div className="flex-1 overflow-y-auto scroll-clean p-5 space-y-6">
               
-              {/* Specialized AI Engine metadata card */}
               <div>
                 <div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider mb-2.5">Cognitive Core Spec</div>
                 <div className="p-4 rounded-xl border border-stone-900 bg-stone-950/30 space-y-3 shadow-inner">
@@ -1027,12 +1134,10 @@ export default function NexaDashboard() {
                 </div>
               </div>
 
-              {/* Performance load gauges */}
               <div>
                 <div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider mb-2.5">Engine Performance</div>
                 <div className="space-y-4">
                   
-                  {/* Response Speed Meter */}
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-center text-[10px]">
                       <span className="text-stone-450">Active Turn Latency</span>
@@ -1050,7 +1155,6 @@ export default function NexaDashboard() {
                     </div>
                   </div>
 
-                  {/* Fact Retrieval context memory load */}
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-center text-[10px]">
                       <span className="text-stone-450">Synaptic Fact Load</span>
@@ -1064,7 +1168,6 @@ export default function NexaDashboard() {
                 </div>
               </div>
 
-              {/* User Gamification Stats Achievements section */}
               <div>
                 <div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider mb-2.5">Cognitive Milestones</div>
                 <div className="space-y-2.5">
