@@ -1,0 +1,13 @@
+{
+  "name": "calculator",
+  "version": "1.0",
+  "description": "Built-in utility helper for calculator.",
+  "author": "system",
+  "commands": [
+    "/calculator"
+  ],
+  "triggers": [
+    "calculator"
+  ],
+  "entry": "main.py"
+}

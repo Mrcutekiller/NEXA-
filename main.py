@@ -827,34 +827,38 @@ class NexaAI:
         width = shutil.get_terminal_size((120, 32)).columns
         buf = io.StringIO()
 
-        cat_logo = [
-            r"   |\__/,|   (`\ ",
-            r" _ |◕  ◕|__  _) )",
-            r"(_   ^   _|=---' ",
-            r"  |     |        ",
+        nexa_logo = [
+            r"     /\     ",
+            r"    /  \    ",
+            r"   /\  /\   ",
+            r"  /  \/  \  ",
+            r"  \  /\  /  ",
+            r"   \/  \/   ",
+            r"    \  /    ",
+            r"     \/     ",
         ]
         info_header = [
-            f"NEXA OMNI TERMINAL  {self.engine.version}",
+            f"NEXA OMNI PROFESSIONAL CONSOLE  {self.engine.version}",
             f"Theme: {self.workspace.theme}  |  Tabs: {len(self.workspace.tabs)}  |  Panes: {len(self.workspace.panes)}",
-            f"Identity: {self.engine.user_name}  |  Mode: GOD_EYE",
-            f"Session restore: ACTIVE  |  Autocomplete: {self.workspace.autocomplete_delay_ms}ms",
+            f"Identity: {self.engine.user_name}  |  Vibe: NOMINAL",
+            f"Session Restore: ACTIVE  |  Latency Guard: OPTIMAL",
         ]
         info_w = max(32, min(68, width - 26))
 
         buf.write("\n")
-        for idx in range(max(len(cat_logo), len(info_header))):
+        for idx in range(max(len(nexa_logo), len(info_header))):
             info_raw = info_header[idx] if idx < len(info_header) else ""
-            logo_raw = cat_logo[idx] if idx < len(cat_logo) else ""
+            logo_raw = nexa_logo[idx] if idx < len(nexa_logo) else ""
             # Coloured versions
             if idx == 0:
-                info_col = f"{self._t('_fg_primary')}{Style.BRIGHT}{info_raw}{self._t('_reset')}"
+                info_col = f"{self._t('_fg_accent')}{Style.BRIGHT}{info_raw}{self._t('_reset')}"
             else:
                 info_col = f"{self._t('_fg_dim')}{info_raw}{self._t('_reset')}"
-            logo_col = f"{Fore.WHITE}{logo_raw}{Style.RESET_ALL}"
+            logo_col = f"{self._t('_fg_accent')}{logo_raw}{Style.RESET_ALL}"
             buf.write(f" {info_col:<{info_w + 20}} {logo_col}\n")
 
         sep = "─" * min(96, width - 2)
-        buf.write(f" {Fore.WHITE}{Style.DIM}{sep}{Style.RESET_ALL}\n")
+        buf.write(f" {self._t('_fg_dim')}{sep}{Style.RESET_ALL}\n")
         sys.stdout.write(buf.getvalue())
         sys.stdout.flush()
         self._print_tab_bar()
@@ -1111,9 +1115,22 @@ class NexaAI:
         if user_input.startswith("/"):
             self._handle_engine_command(user_input)
             return
-        self._raw_print(f" {self._t('_fg_dim')}Cross-referencing vault...{self._t('_reset')}")
+        
+        last_length = [0]
+        def cli_status_cb(status_msg: str):
+            msg = f"\r {self._t('_fg_dim')}{status_msg}{self._t('_reset')}"
+            padding = max(0, last_length[0] - len(status_msg))
+            sys.stdout.write(msg + " " * padding)
+            sys.stdout.flush()
+            last_length[0] = len(status_msg)
+
+        cli_status_cb("Cross-referencing vault...")
         started = time.perf_counter()
-        response = self.engine.generate_response(user_input)
+        response = self.engine.generate_response(user_input, status_callback=cli_status_cb)
+        if last_length[0] > 0:
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+            
         latency_ms = int((time.perf_counter() - started) * 1000)
         self._emit_response(response, latency_ms=latency_ms)
         self.memory.add_chat_turn("user", user_input)
@@ -1440,15 +1457,38 @@ class NexaAI:
     def _emit_response(self, response: str, latency_ms: int) -> None:
         """Accumulate all output in a StringIO then flush once — keeps UI snappy."""
         self.workspace.append_output(f"NEXA> {response}")
+        width = shutil.get_terminal_size((80, 24)).columns
+        box_width = min(88, width - 4)
+        
+        active_model = self.engine.active_model.upper()
+        
+        # Header border line
+        header_text = f" NEXA CORE › {active_model} "
+        header_len = len(header_text)
+        border_left = "┌" + "─" * 4
+        border_right = "─" * max(4, box_width - header_len - 5) + "┐"
+        
         buf = io.StringIO()
-        buf.write(
-            f"\n {self._t('_fg_accent')}NEXA {self._t('_fg_primary')}⬢ "
-            f"{self._t('_fg_dim')}{latency_ms}ms{self._t('_reset')}\n"
-        )
-        for line in response.splitlines() or [""]:
-            highlighted = self._highlight_output(line)
-            buf.write(f" {self._t('_fg_primary')}{highlighted}{self._t('_reset')}\n")
         buf.write("\n")
+        buf.write(f" {self._t('_fg_accent')}{border_left}{self._t('_fg_primary')}{Style.BRIGHT}{header_text}{self._t('_reset')}{self._t('_fg_accent')}{border_right}{self._t('_reset')}\n")
+        
+        # Response body lines inside the box with vertical border lines
+        for line in response.splitlines() or [""]:
+            # Wrap lines to fit nicely in the box
+            wrapped = textwrap.wrap(line, width=box_width - 6) or [""]
+            for wline in wrapped:
+                highlighted = self._highlight_output(wline)
+                plain_wline = self.workspace._strip_ansi(highlighted)
+                padding_size = max(0, box_width - len(plain_wline) - 4)
+                buf.write(f" {self._t('_fg_accent')}│{self._t('_reset')}  {self._t('_fg_primary')}{highlighted}{self._t('_reset')}{' ' * padding_size} {self._t('_fg_accent')}│{self._t('_reset')}\n")
+                
+        # Footer border line
+        footer_text = f" {latency_ms}ms "
+        footer_len = len(footer_text)
+        border_footer = "└" + "─" * max(4, box_width - footer_len - 5) + footer_text + "─" * 4 + "┘"
+        
+        buf.write(f" {self._t('_fg_accent')}{border_footer}{self._t('_reset')}\n\n")
+        
         sys.stdout.write(buf.getvalue())
         sys.stdout.flush()
         self._print_workspace_snapshot()

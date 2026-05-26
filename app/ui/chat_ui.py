@@ -511,21 +511,39 @@ class NexaApp(App):
             self.xp_manager.record_topic("general")
 
         # 4. Generate AI response using logic engine
-        # Inject system prompt of active model as context
         active_model_cfg = self.model_manager.active_model
-        
-        # Run logic engine
-        # Temporarily adapt mood for persona
         self.engine.active_model = active_model_cfg.key.upper()
         self.engine.user_name = self.memory.memory.get("user_traits", {}).get("name") or "Human"
         
-        response = self.engine.generate_response(text)
+        # Create a placeholder bot bubble and mount it immediately so user sees action fast
+        bot_bubble = ChatBubble(sender="Nexa", text="⚡ Thinking...", model_color=self.active_color)
+        self.chat_container.mount(bot_bubble)
+        self.call_after_refresh(self.scroll_chat_to_bottom)
         
-        # Format response with persona characteristics
-        formatted_response = f"{active_model_cfg.icon} {response}"
-        self.append_bot_message(formatted_response)
-        
-        self.refresh_stats_ui()
+        def bg_generate():
+            def status_cb(status_msg: str):
+                self.call_from_thread(bot_bubble.update_text, f"⚡ {status_msg}")
+                self.call_from_thread(self.scroll_chat_to_bottom)
+            
+            try:
+                response = self.engine.generate_response(text, status_callback=status_cb)
+                formatted_response = f"{active_model_cfg.icon} {response}"
+                self.call_from_thread(bot_bubble.update_text, formatted_response)
+                
+                # Record in history
+                self.chat_history_list.append({"sender": "Nexa", "text": formatted_response})
+                self.call_from_thread(self.minimap.update_messages, list(self.chat_history_list))
+                self.call_from_thread(self.status_bar.increment_messages)
+                self.call_from_thread(self.refresh_stats_ui)
+                self.call_from_thread(self.scroll_chat_to_bottom)
+                
+                # voice output speaking
+                if self.voice_active and self.voice_output:
+                    self.voice_output.speak(response, active_model_cfg.voice_profile)
+            except Exception as e:
+                self.call_from_thread(bot_bubble.update_text, f"[Error generating response: {e}]")
+                
+        threading.Thread(target=bg_generate, daemon=True).start()
 
     def award_xp(self, event_key: str):
         xp_gained, leveled_up = self.xp_manager.add_xp(event_key)

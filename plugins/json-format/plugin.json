@@ -1,0 +1,13 @@
+{
+  "name": "json-format",
+  "version": "1.0",
+  "description": "Built-in utility helper for json-format.",
+  "author": "system",
+  "commands": [
+    "/json-format"
+  ],
+  "triggers": [
+    "json-format"
+  ],
+  "entry": "main.py"
+}

@@ -34,3 +34,10 @@ class ChatBubble(Widget):
         with Vertical():
             yield Label(header, id="bubble-header")
             yield Label(self.text, id="bubble-body")
+
+    def update_text(self, new_text: str) -> None:
+        self.text = new_text
+        try:
+            self.query_one("#bubble-body", Label).update(new_text)
+        except Exception:
+            pass

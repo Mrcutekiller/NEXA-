@@ -1,0 +1,13 @@
+{
+  "name": "timer",
+  "version": "1.0",
+  "description": "Built-in utility helper for timer.",
+  "author": "system",
+  "commands": [
+    "/timer"
+  ],
+  "triggers": [
+    "timer"
+  ],
+  "entry": "main.py"
+}

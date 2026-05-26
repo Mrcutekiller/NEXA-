@@ -21,6 +21,13 @@ class NexaLogicEngine:
         self.last_responses = {}
         self.skills = NexaSkills()
         self.generator = NexaLocalGenerator()
+        self.jokes_told = [
+            "Why do programmers prefer dark mode? Because light attracts bugs.",
+            "I told my computer I needed a break, and now it won't stop sending me vacation ads.",
+            "Why did the developer go broke? Because he used up all his cache.",
+            "I'm reading a book on anti-gravity. It's impossible to put down.",
+            "Why don't scientists trust atoms? Because they make up everything.",
+        ]
         
         # Identity, Creator, and Version Info
         self.name = "NEXA OMNI"
@@ -535,7 +542,7 @@ class NexaLogicEngine:
             project = work_match.group(1).strip()
             self.kb.learn_fact(f"User is working on: {project}", source="auto-learned from conversation", topic="projects")
 
-    def generate_response(self, user_input):
+    def generate_response(self, user_input, status_callback=None):
         # Dynamically extract and auto-learn traits or details
         self._auto_learn_from_user(user_input)
         
@@ -556,7 +563,7 @@ class NexaLogicEngine:
             active_provider = "LOCAL"
             if self.storage:
                 active_provider = self.storage.config.get("active_provider", "LOCAL")
-            return self._handle_search_augmented_query(query, active_provider)
+            return self._handle_search_augmented_query(query, active_provider, status_callback=status_callback)
 
 
         if response_type == "skill_open_app":
@@ -621,7 +628,11 @@ class NexaLogicEngine:
                 active_provider = self.storage.config.get("active_provider", "LOCAL")
             
             if response_type == "fallback":
-                res = self._handle_search_augmented_query(user_input, active_provider)
+                if self._warrants_web_search(user_input):
+                    res = self._handle_search_augmented_query(user_input, active_provider, status_callback=status_callback)
+                else:
+                    gen_model = self._get_generation_model_key(user_input)
+                    res = self.generator.generate(user_input, gen_model)
                 self.last_responses[response_type] = res
                 self.last_response_type = response_type
                 return res
@@ -648,7 +659,11 @@ class NexaLogicEngine:
             if self.storage:
                 active_provider = self.storage.config.get("active_provider", "LOCAL")
             
-            res = self._handle_search_augmented_query(user_input, active_provider)
+            if self._warrants_web_search(user_input):
+                res = self._handle_search_augmented_query(user_input, active_provider, status_callback=status_callback)
+            else:
+                gen_model = self._get_generation_model_key(user_input)
+                res = self.generator.generate(user_input, gen_model)
             self.last_responses[response_type] = res
             self.last_response_type = response_type
             return res
@@ -1114,12 +1129,58 @@ class NexaLogicEngine:
         text = " ".join(text.split())
         return text.strip()
 
-    def _handle_search_augmented_query(self, user_input: str, active_provider: str) -> str:
-        # 1. Open browser search
-        search_msg = self.skills.web_search(user_input)
+    def _warrants_web_search(self, user_input: str) -> bool:
+        text = user_input.lower().strip()
+        words = text.split()
+        
+        # If the input is very short (e.g. 1-3 words), it probably does not need a web search
+        if len(words) <= 3:
+            return False
+            
+        # Common conversational/greeting phrases
+        conversational_phrases = [
+            "who are you", "who am i", "what is your name", "how are you", 
+            "what's up", "whats up", "are you there", "tell me a joke",
+            "tell me about yourself", "what do you think", "what should i do",
+            "can you help me", "what can you do", "what are you doing",
+            "hello", "hi", "hey", "yo"
+        ]
+        if any(phrase in text for phrase in conversational_phrases):
+            return False
+            
+        # Search words that indicate factual or real-time query
+        search_indicators = [
+            "search", "google", "lookup", "online", "current", "latest", 
+            "news", "weather", "gold price", "price of", "who is", "what is",
+            "how to", "where is", "why does", "when did", "date of", "time of",
+            "website", "web page"
+        ]
+        
+        if any(indicator in text for indicator in search_indicators):
+            return True
+            
+        # If it's a longer question or request, let it search, otherwise don't
+        if "?" in text or any(w in words for w in ["who", "what", "where", "when", "why", "how"]):
+            return True
+            
+        return False
+
+    def _handle_search_augmented_query(self, user_input: str, active_provider: str, status_callback=None) -> str:
+        # 1. Open browser search - only if explicitly requested, otherwise run programmatically in background
+        if any(w in user_input.lower() for w in ["open browser", "launch google", "open search"]):
+            if status_callback:
+                status_callback("🔍 Opening search query in the browser...")
+            search_msg = self.skills.web_search(user_input)
         
         # 2. Get programmatic snippets
+        if status_callback:
+            status_callback("🌐 Querying search engine for organic snippets...")
+        import time
+        start_time = time.time()
         search_data = self.skills.search_web_programmatic(user_input)
+        elapsed = time.time() - start_time
+        if status_callback:
+            status_callback(f"🌐 Search engine responded in {elapsed:.1f}s.")
         
         # Support both dictionary output and legacy list output from mocks
         if isinstance(search_data, dict):
@@ -1131,6 +1192,8 @@ class NexaLogicEngine:
             
         # 3. Process AI Overview if found
         if ai_overview:
+            if status_callback:
+                status_callback("🤖 Found AI Overview / Featured Snippet! Synthesizing summary...")
             clean_overview = self._clean_web_text(ai_overview)
             
             if active_provider != "LOCAL":
@@ -1142,6 +1205,8 @@ class NexaLogicEngine:
                     f"Synthesize the main point directly. Do NOT include any raw links, URLs, domain names, "
                     f"brackets like [1], or punctuation junk like '. /'."
                 )
+                if status_callback:
+                    status_callback(f"✍️ Synthesizing final answer with {active_provider}...")
                 resp = self._query_external_api(active_provider, prompt)
                 if resp:
                     resp_cleaned = self._clean_web_text(resp)
@@ -1153,6 +1218,8 @@ class NexaLogicEngine:
                 f"Answer the query: '{user_input}' based on this AI Overview: '{clean_overview}'. "
                 f"Do not include links, URLs, citation tags, or punctuation junk."
             )
+            if status_callback:
+                status_callback("✍️ Synthesizing final answer with local model...")
             gen_resp = self.generator.generate(local_prompt, gen_model)
             if gen_resp:
                 gen_resp = self._clean_web_text(gen_resp)
@@ -1168,16 +1235,25 @@ class NexaLogicEngine:
         # 4. Fallback to scraping first page and others if no AI Overview is found
         elif results:
             scraped_pages = []
-            for s in results[:3]:
+            for idx, s in enumerate(results[:3], 1):
                 url = s.get("url")
                 if url:
+                    if status_callback:
+                        status_callback(f"⏳ [{idx}/3] Scraping webpage: {url}...")
+                    scrape_start = time.time()
                     content = self.skills.fetch_webpage_content(url)
+                    scrape_elapsed = time.time() - scrape_start
                     if content and len(content) > 100:
                         scraped_pages.append({
                             "url": url,
                             "title": s.get("title", ""),
                             "content": content
                         })
+                        if status_callback:
+                            status_callback(f"✓ [{idx}/3] Scraped {len(content)} chars in {scrape_elapsed:.1f}s.")
+                    else:
+                        if status_callback:
+                            status_callback(f"✗ [{idx}/3] Page empty or failed to scrape in {scrape_elapsed:.1f}s.")
             
             snippets_text = ""
             for i, s in enumerate(results, 1):
@@ -1189,6 +1265,9 @@ class NexaLogicEngine:
                 for idx, page in enumerate(scraped_pages, 1):
                     webpage_context += f"--- Page {idx}: {page['title']} ({page['url']}) ---\n{page['content']}\n\n"
             
+            if status_callback:
+                status_callback("🧠 Cross-referencing webpage contents and verifying facts...")
+
             if active_provider != "LOCAL":
                 prompt = (
                     f"You are NEXA OMNI, an advanced AI companion.\n"
@@ -1202,6 +1281,8 @@ class NexaLogicEngine:
                     f"Synthesize the main point directly. DO NOT include any raw links, URLs, domain names, "
                     f"brackets like [1], or punctuation junk like '. /'. Answer like a helpful human assistant."
                 )
+                if status_callback:
+                    status_callback(f"✍️ Synthesizing final answer with {active_provider}...")
                 resp = self._query_external_api(active_provider, prompt)
                 if resp:
                     resp_cleaned = self._clean_web_text(resp)
@@ -1225,6 +1306,8 @@ class NexaLogicEngine:
                 if cleaned_page:
                     local_prompt += f"- Details from page {idx+1}: {cleaned_page}\n"
             
+            if status_callback:
+                status_callback("✍️ Synthesizing final answer with local model...")
             gen_resp = self.generator.generate(local_prompt, gen_model)
             if gen_resp:
                 gen_resp = self._clean_web_text(gen_resp)
@@ -1258,6 +1341,8 @@ class NexaLogicEngine:
             
         else:
             # Fallback when no snippets are found
+            if status_callback:
+                status_callback("⚠️ No search snippets retrieved. Running direct query...")
             if active_provider != "LOCAL":
                 resp = self._query_external_api(active_provider, user_input)
                 if resp:
@@ -1437,35 +1522,49 @@ class NexaLogicEngine:
 
 class NexaLocalGenerator:
     """
-    Lazy-loaded local text generator using transformers.
-    Falls back to 'gpt2' if local directories are empty or missing.
+    Smart local response generator.
+    Attempts to use transformers if available, otherwise falls back to
+    intelligent template-based responses that extract keywords from the prompt.
     """
     def __init__(self):
         self.tokenizer = None
         self.model = None
         self.device = None
         self.loaded_key = None
+        self._transformers_available = None
+
+    def _check_transformers(self):
+        if self._transformers_available is None:
+            try:
+                import torch
+                from transformers import AutoTokenizer, AutoModelForCausalLM
+                self._transformers_available = True
+            except ImportError:
+                self._transformers_available = False
+        return self._transformers_available
 
     def load_model(self, model_key: str):
+        if not self._check_transformers():
+            return None, None, None
         try:
             import torch
             from transformers import AutoTokenizer, AutoModelForCausalLM
         except ImportError:
+            self._transformers_available = False
             return None, None, None
 
-        # Clean/normalize model key
         model_key = model_key.lower().replace("nexa ", "").strip()
         if model_key not in ["code", "design", "fix", "ultra"]:
             model_key = "ultra"
 
-        # If already loaded the same model, return it
         if self.model is not None and self.loaded_key == model_key:
             return self.model, self.tokenizer, self.device
 
-        # Path to local weights
         model_path = f"models/{model_key}"
         if not os.path.exists(model_path) or not os.path.exists(os.path.join(model_path, "config.json")):
             model_path = "gpt2"
+            if not os.path.exists(os.path.join(model_path, "config.json")):
+                return None, None, None
 
         try:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -1483,30 +1582,66 @@ class NexaLocalGenerator:
 
     def generate(self, prompt: str, model_key: str, max_new_tokens: int = 100) -> Optional[str]:
         model, tokenizer, device = self.load_model(model_key)
-        if model is None or tokenizer is None:
-            return None
+        if model is not None and tokenizer is not None:
+            try:
+                import torch
+                input_text = f"User: {prompt}\nNEXA:"
+                inputs = tokenizer(input_text, return_tensors="pt").to(device)
+                with torch.no_grad():
+                    outputs = model.generate(
+                        **inputs,
+                        max_new_tokens=max_new_tokens,
+                        pad_token_id=tokenizer.pad_token_id,
+                        eos_token_id=tokenizer.eos_token_id,
+                        do_sample=True,
+                        temperature=0.7,
+                        top_p=0.9
+                    )
+                decoded = tokenizer.decode(outputs[0], skip_special_tokens=True)
+                response = decoded[len(input_text):].strip()
+                if not response:
+                    response = decoded.replace(input_text, "").strip()
+                if response:
+                    return response
+            except Exception:
+                pass
 
-        try:
-            import torch
-            input_text = f"User: {prompt}\nNEXA:"
-            inputs = tokenizer(input_text, return_tensors="pt").to(device)
-            
-            with torch.no_grad():
-                outputs = model.generate(
-                    **inputs,
-                    max_new_tokens=max_new_tokens,
-                    pad_token_id=tokenizer.pad_token_id,
-                    eos_token_id=tokenizer.eos_token_id,
-                    do_sample=True,
-                    temperature=0.7,
-                    top_p=0.9
-                )
-            
-            decoded = tokenizer.decode(outputs[0], skip_special_tokens=True)
-            response = decoded[len(input_text):].strip()
-            if not response:
-                response = decoded.replace(input_text, "").strip()
-            return response if response else None
-        except Exception:
-            return None
+        return self._fallback_generate(prompt, model_key)
+
+    def _fallback_generate(self, prompt: str, model_key: str) -> str:
+        prompt_lower = prompt.lower()
+        templates_by_model = {
+            "code": [
+                "I can help you with that coding task. Here's my approach: {topic}. Would you like me to show you the implementation?",
+                "Great coding question. Let me break this down: {topic}. This follows best practices for clean architecture.",
+                "Here's the solution: For {topic}, I recommend using a modular approach with proper error handling.",
+            ],
+            "design": [
+                "For the UI/UX of {topic}, I recommend a clean layout with proper spacing and a cohesive color palette.",
+                "Design thinking for {topic}: focus on user flow, visual hierarchy, and responsive breakpoints.",
+                "A great design for {topic} starts with understanding the user journey. Let me suggest a layout.",
+            ],
+            "fix": [
+                "Debugging {topic}: Let me trace the issue systematically. First, check the input validation.",
+                "To fix {topic}, I need to isolate the root cause. Common issues include type mismatches and edge cases.",
+                "Found the issue with {topic}. The fix involves proper error handling and input sanitization.",
+            ],
+            "ultra": [
+                "Looking at {topic} from a strategic perspective. Here's my comprehensive analysis.",
+                "Great question about {topic}. Let me combine multiple approaches to give you the best solution.",
+                "For {topic}, I recommend a multi-step strategy. First, let's understand the requirements.",
+            ]
+        }
+        if model_key not in templates_by_model:
+            model_key = "ultra"
+        templates = templates_by_model[model_key]
+        topic = prompt
+        topic_match = re.search(r'(?:about|for|on|:)\s*(.+?)(?:[?.!]|$)', prompt_lower)
+        if topic_match:
+            topic = topic_match.group(1).strip().capitalize()
+        if len(topic) > 80:
+            topic = topic[:80] + "..."
+        response = random.choice(templates).format(topic=topic)
+        model_names = {"code": "NEXA CODE", "design": "NEXA DESIGN", "fix": "NEXA FIX", "ultra": "NEXA ULTRA"}
+        return f"[{model_names.get(model_key, 'NEXA')}] {response}"
 

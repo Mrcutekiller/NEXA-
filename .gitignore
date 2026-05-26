@@ -5,5 +5,8 @@ nexa_memory.json
 .env
 models/
 nexa-ui/node_modules/
+nexa-ui/.next/
+nexa_cli_history.txt
+nexa_terminal_state.json
 *.db
 *.log

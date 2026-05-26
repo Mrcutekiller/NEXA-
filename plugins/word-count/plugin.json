@@ -1,0 +1,13 @@
+{
+  "name": "word-count",
+  "version": "1.0",
+  "description": "Built-in utility helper for word-count.",
+  "author": "system",
+  "commands": [
+    "/word-count"
+  ],
+  "triggers": [
+    "word-count"
+  ],
+  "entry": "main.py"
+}
