@@ -15,7 +15,7 @@ Screen {
 }
 
 .title-bar {
-    grid-column: 1 / 3;
+    column-span: 2;
     background: #292524;
     color: #f5f5f4;
     border-bottom: hsolid #d97706;
@@ -25,15 +25,12 @@ Screen {
 }
 
 .sidebar {
-    grid-row: 2 / 3;
     background: #292524;
     border-right: vsolid #44403c;
     padding: 1 2;
 }
 
 #chat-area {
-    grid-row: 2 / 3;
-    grid-column: 2 / 3;
     background: #1c1917;
     layout: horizontal;
     padding: 0;
@@ -77,8 +74,7 @@ Screen {
 }
 
 #input-container {
-    grid-column: 1 / 3;
-    grid-row: 3 / 4;
+    column-span: 2;
     layout: horizontal;
     background: #292524;
     border-top: hsolid #44403c;
@@ -99,7 +95,7 @@ Screen {
 }
 
 .status-bar {
-    grid-column: 1 / 3;
+    column-span: 2;
     height: 1;
     background: #292524;
     color: #a8a29e;
