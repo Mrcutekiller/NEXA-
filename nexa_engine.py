@@ -108,6 +108,11 @@ class NexaLogicEngine:
                 "Logic is my middle name. I can debug your life and your code at the same time. Show me the script.",
                 "Need an algorithm or just a quick fix? I'm the god of syntax. Let's get those repos moving."
             ],
+            "grading_skills": [
+                "Code grading is an art. I evaluate submissions based on correctness (40%), design (25%), style (20%), and security (15%). Let's grade some code!",
+                "Show me the student's submission and the assignment description. I will break down the scoring and provide comprehensive, constructive feedback.",
+                "Whether it's a bubble sort O(N^2) optimization problem or a safe sqlite3 database connector context manager, I'm ready to grade it with precision."
+            ],
             "trading_skills": [
                 "Buy low, sell high. But you knew that. Want to talk technical analysis, crypto trends, or stock options?",
                 "The markets never sleep, and neither do my algorithms. I can help you spot the next moonshot. 🚀",
@@ -332,6 +337,7 @@ class NexaLogicEngine:
         if any(word in words for word in ["mobile", "app", "flutter", "react", "ios", "android", "website", "frontend", "backend"]): return "mobile_web_dev"
         
         if any(word in words for word in ["code", "programming", "python", "javascript", "script", "debug", "algorithm"]): return "coding_skills"
+        if any(word in words for word in ["grade", "grading", "score", "rubric", "assess", "assessment", "evaluate"]): return "grading_skills"
         if any(word in words for word in ["trade", "trading", "stock", "crypto", "market", "invest", "bitcoin"]): return "trading_skills"
         if any(word in words for word in ["rizz", "girls", "boys", "date", "charm", "flirt", "game", "attract"]): return "rizz_skills"
         if any(word in words for word in ["hack", "security", "firewall", "protect", "cyber"]): return "cybersecurity"
@@ -617,7 +623,7 @@ class NexaLogicEngine:
 
         # Try local generator first for coding, design, debug/fix or general fallback queries
         generator_compatible = {
-            "coding_skills", "game_development", "document_office_pro",
+            "coding_skills", "grading_skills", "game_development", "document_office_pro",
             "multimedia_production", "mobile_web_dev", "trading_skills",
             "rizz_skills", "cybersecurity", "creative_writing", "history",
             "space", "business", "health", "art", "fallback"

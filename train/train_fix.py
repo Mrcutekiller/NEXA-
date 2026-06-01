@@ -35,7 +35,7 @@ def train():
     args = parse_args()
     
     print("=" * 60)
-    print("      🔧 STARTING NEXA FIX DEEP TRAINING PIPELINE")
+    print("      STARTING NEXA FIX DEEP TRAINING PIPELINE")
     print("=" * 60)
     print(f"Base Model:       {args.model_name}")
     print(f"Corpus Path:      {args.corpus}")
@@ -116,7 +116,7 @@ def train():
                 print(f"  Epoch [{epoch+1}/{args.epochs}] | Step [{step}/{len(loader)}] | Current Loss: {loss.item():.4f}")
                 
         avg_loss = epoch_loss / len(loader)
-        print(f"✔️ Epoch [{epoch+1}/{args.epochs}] Complete! Average Loss: {avg_loss:.4f}")
+        print(f"Epoch [{epoch+1}/{args.epochs}] Complete! Average Loss: {avg_loss:.4f}")
 
     # Save final model
     print("-" * 60)
